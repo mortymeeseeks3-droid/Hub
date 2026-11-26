@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#030303">
+    <title>A R T H O U S E // Studio Hub</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #030303;
+            --surface: #0a0a0a;
+            --text-color: #e0e0e0;
+            --text-muted: #666666;
+            --border: rgba(255, 255, 255, 0.08);
+            --accent: rgba(255, 255, 255, 0.03);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100dvh;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Montserrat', sans-serif;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        /* --- MAIN HUB VIEW --- */
+        #hub-view {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100dvh;
+            transition: opacity 0.4s ease, transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        header {
+            flex-shrink: 0;
+            height: 8dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.4em;
+            font-weight: 200;
+            font-size: 0.7rem;
+            color: var(--text-color);
+            background: var(--bg-color);
+        }
+
+        .grid-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(7, 1fr);
+            gap: 1px;
+            background-color: var(--border); /* Acts as ultra-thin grid lines */
+        }
+
+        .grid-item {
+            background-color: var(--surface);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        /* Dark cinematic overlay to keep thin fonts readable */
+        .grid-item::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, rgba(3, 3, 3, 0.4) 0%, rgba(3, 3, 3, 0.95) 100%);
+            opacity: 0.55;
+            transition: opacity 0.4s ease;
+        }
+
+        .grid-item:active {
+            background-color: #121212;
+        }
+
+        /* Brightens the image slightly when pressed */
+        .grid-item:active::before {
+            opacity: 0.6;
+        }
+
+        .app-number {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 0.5rem;
+            font-weight: 100;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+        }
+
+        .app-title {
+            position: relative;
+            z-index: 2;
+            font-size: 0.65rem;
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            text-align: center;
+            padding: 0 15px;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        /* --- APP LAUNCHER OVERLAY --- */
+        #app-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100dvh;
+            background: #000;
+            z-index: 100;
+            transform: translateY(100%);
+            transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #app-overlay.active {
+            transform: translateY(0);
+        }
+
+        iframe {
+            width: 100%;
+            flex: 1;
+            border: none;
+            background: #000;
+        }
+
+        /* Back Button Floating over App - MOVED TO TOP */
+        #btn-back {
+            position: absolute;
+            top: 30px; /* <--- Changed from bottom to top */
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.65);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            font-family: inherit;
+            font-weight: 200;
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            padding: 14px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 101;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        #btn-back:active {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hub-view">
+        <header>S T U D I O // M A T R I X</header>
+        <div class="grid-container" id="grid">
+            <div class="grid-item" data-url="wallpaper.html" style="background-image: url('wallpaper.png');">
+                <span class="app-number">01</span>
+                <span class="app-title">wallpaper</span>
+            </div>
+            <div class="grid-item" data-url="Kaleidoscope.html" style="background-image: url('kaleidoscope.png');">
+                <span class="app-number">02</span>
+                <span class="app-title">Kaleidoscope</span>
+            </div>
+            <div class="grid-item" data-url="Silhouette.html" style="background-image: url('silhouette.png');">
+                <span class="app-number">03</span>
+                <span class="app-title">Silhouette</span>
+            </div>
+            <div class="grid-item" data-url="Shapes.html" style="background-image: url('shapes.png');">
+                <span class="app-number">04</span>
+                <span class="app-title">Shapes</span>
+            </div>
+            <div class="grid-item" data-url="Polygons.html" style="background-image: url('polygons.png');">
+                <span class="app-number">05</span>
+                <span class="app-title">Polygons</span>
+            </div>
+            <div class="grid-item" data-url="Hexagons.html" style="background-image: url('hexagons.png');">
+                <span class="app-number">06</span>
+                <span class="app-title">Hexagons</span>
+            </div>
+            <div class="grid-item" data-url="Patterns.html" style="background-image: url('patterns.png');">
+                <span class="app-number">07</span>
+                <span class="app-title">Patterns</span>
+            </div>
+            <div class="grid-item" data-url="Backgrounds.html" style="background-image: url('backgrounds.png');">
+                <span class="app-number">08</span>
+                <span class="app-title">Backgrounds</span>
+            </div>
+            <div class="grid-item" data-url="Geometric.html" style="background-image: url('geometric.png');">
+                <span class="app-number">09</span>
+                <span class="app-title">Geometric</span>
+            </div>
+            <div class="grid-item" data-url="Gradients.html" style="background-image: url('gradients.png');">
+                <span class="app-number">10</span>
+                <span class="app-title">Gradients</span>
+            </div>
+            <div class="grid-item" data-url="Acidwash.html" style="background-image: url('acidwash.png');">
+                <span class="app-number">11</span>
+                <span class="app-title">Acid wash</span>
+            </div>
+            <div class="grid-item" data-url="Impressionism.html" style="background-image: url('impressionism.png');">
+                <span class="app-number">12</span>
+                <span class="app-title">Impressionism</span>
+            </div>
+             <div class="grid-item" data-url="Halftone.html" style="background-image: url('halftone.png');">
+                <span class="app-number">13</span>
+                <span class="app-title">Halftone gradients</span>
+            </div>
+             <div class="grid-item" data-url="Sharpgradient.html" style="background-image: url('sharpgradient.png');">
+                <span class="app-number">14</span>
+                <span class="app-title">Sharp Gradients</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-overlay">
+        <button id="btn-back">Close App</button>
+        <iframe id="app-frame" src=""></iframe>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gridItems = document.querySelectorAll('.grid-item');
+            const overlay = document.getElementById('app-overlay');
+            const hubView = document.getElementById('hub-view');
+            const iframe = document.getElementById('app-frame');
+            const btnBack = document.getElementById('btn-back');
+
+            // Open App
+            gridItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const url = item.getAttribute('data-url');
+                    
+                    // Load the iframe src
+                    iframe.src = url;
+                    
+                    // Trigger animations
+                    overlay.classList.add('active');
+                    hubView.style.transform = 'scale(0.95)';
+                    hubView.style.opacity = '0.3';
+                });
+            });
+
+            // Close App and Return to Hub
+            btnBack.addEventListener('click', () => {
+                overlay.classList.remove('active');
+                hubView.style.transform = 'scale(1)';
+                hubView.style.opacity = '1';
+                
+                // Clear the iframe src after the transition finishes to reset the state and free memory
+                setTimeout(() => {
+                    iframe.src = '';
+                }, 600); 
+            });
+        });
+    </script>
+</body>
+</html>

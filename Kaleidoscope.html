@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Pattern Studio - Kaleidoscope Fullscreen</title>
+<style>
+  /* Minimalist Aesthetic - Reset & Base */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    font-weight: 300;
+    background: #2b3026; 
+    color: #eed4d7; 
+    height: 100vh; 
+    height: 100dvh; 
+    overflow: hidden; 
+  }
+  
+  /* Canvas Area - Always Fullscreen */
+  .canvas-wrapper { 
+    width: 100vw;
+    height: 100vh;
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  
+  #art-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  #art-container svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+  }
+  
+  /* Floating Controls */
+  .fs-controls { 
+    position: absolute; 
+    bottom: 32px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: rgba(43, 48, 38, 0.85); 
+    backdrop-filter: blur(16px); 
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(238, 212, 215, 0.2); 
+    padding: 8px 12px; 
+    border-radius: 50px; 
+    display: flex;
+    gap: 12px; 
+    z-index: 2000; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    align-items: center;
+  }
+
+  .fs-controls button { 
+    border-radius: 30px; 
+    padding: 12px 20px; 
+    font-family: inherit;
+    font-size: 11px; 
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid transparent; 
+    background: transparent; 
+    color: #eed4d7;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+  }
+  .fs-controls button:hover { opacity: 1; background: rgba(238, 212, 215, 0.1); }
+  .fs-controls button:active { background: rgba(238, 212, 215, 0.2); }
+  
+  .fs-controls .btn-primary { 
+    background: rgba(238, 212, 215, 0.1); 
+    border: 1px solid rgba(238, 212, 215, 0.4); 
+    opacity: 1;
+  }
+  .fs-controls .btn-primary:hover {
+    background: rgba(238, 212, 215, 0.2); 
+    border-color: #eed4d7;
+  }
+
+  /* Size Input Fields */
+  .size-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    border-left: 1px solid rgba(238, 212, 215, 0.2);
+    border-right: 1px solid rgba(238, 212, 215, 0.2);
+    height: 24px;
+  }
+
+  .size-inputs input {
+    background: transparent;
+    border: none;
+    color: #eed4d7;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 300;
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+    width: 48px;
+  }
+  
+  .size-inputs input:focus { opacity: 1; }
+  .size-inputs input::-webkit-outer-spin-button,
+  .size-inputs input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  
+  .size-inputs span {
+    color: rgba(238, 212, 215, 0.5);
+    font-size: 10px;
+    margin: 0 2px;
+  }
+
+  @media (max-width: 600px) {
+    .fs-controls { bottom: 16px; padding: 10px; gap: 8px; flex-wrap: wrap; justify-content: center; border-radius: 20px; width: 95%; }
+    .fs-controls button { padding: 10px 14px; font-size: 10px; }
+    .size-inputs { border: none; width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas-wrapper">
+  <div id="art-container"></div>
+</div>
+
+<div class="fs-controls">
+  <button id="btn-random" class="btn-primary">Randomize</button>
+  
+  <div class="size-inputs" title="Output Dimensions (W x H)">
+    <input type="number" id="outW" value="2000" placeholder="W">
+    <span>✕</span>
+    <input type="number" id="outH" value="2000" placeholder="H">
+  </div>
+  
+  <button id="btn-svg">SVG</button>
+  <button id="btn-png">PNG</button>
+</div>
+
+<script>
+// --- CORE UTILITIES ---
+function hslToHex(h, s, l) {
+    l /= 100;
+    const a = s * Math.min(l, 1 - l) / 100;
+    const f = n => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function rndInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function rndFloat(min, max) { return parseFloat((Math.random() * (max - min) + min).toFixed(2)); }
+function rndChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function getPolygonPoints(sides, radius) {
+    let points = [];
+    for (let i = 0; i < sides; i++) {
+        let angle = (Math.PI * 2 / sides) * i - (Math.PI / 2);
+        points.push(`${Math.cos(angle) * radius},${Math.sin(angle) * radius}`);
+    }
+    return points.join(' ');
+}
+
+function getStarPoints(outerRadius, pointsCount) {
+    let points = [];
+    const innerRadius = outerRadius * 0.35;
+    for(let i=0; i<pointsCount * 2; i++) {
+        let r = i % 2 === 0 ? outerRadius : innerRadius;
+        let a = (Math.PI / pointsCount) * i;
+        points.push(`${r * Math.sin(a)},${-r * Math.cos(a)}`);
+    }
+    return points.join(' ');
+}
+
+// --- STATE MANAGEMENT ---
+const state = {
+    symmetry: 12,
+    cameraZoom: 1.0,
+    bgColor: "#2b3026",
+    layers: [],
+    w: 2000,
+    h: 2000
+};
+
+// --- DRAWING LOGIC ---
+function renderArt() {
+    const container = document.getElementById('art-container');
+    
+    let vSize = 1000 / state.cameraZoom;
+    let vOffset = -vSize / 2;
+    
+    let svgContent = `<svg id="master-art" xmlns="http://www.w3.org/2000/svg" viewBox="${vOffset} ${vOffset} ${vSize} ${vSize}" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">`;
+    
+    // Safety oversized background rect to ensure coverage even on weird aspect ratios
+    svgContent += `<rect x="${vOffset*5}" y="${vOffset*5}" width="${vSize*10}" height="${vSize*10}" fill="${state.bgColor}" />`;
+    
+    let layersSVG = '';
+    
+    state.layers.forEach(layer => {
+        let layerShapeSVG = '';
+        
+        for (let k = 0; k < layer.lineCount; k++) {
+            let shrinkFactor = 1 - (k * (0.8 / layer.lineCount));
+            let currentSize = Math.max(1, layer.size * shrinkFactor); 
+            
+            // Forced to strokes only
+            let useFill = 'none';
+            let useFillOp = 0;
+            let useStroke = layer.strokeColor;
+            
+            let style = `fill="${useFill}" fill-opacity="${useFillOp}" stroke="${useStroke}" stroke-opacity="${layer.strokeOpacity}" stroke-width="${layer.strokeWidth}" stroke-linejoin="round"`;
+
+            if (layer.type === 'circle') {
+                layerShapeSVG += `<circle cx="0" cy="0" r="${currentSize}" ${style} />`;
+            } else if (layer.type === 'square') {
+                layerShapeSVG += `<rect x="${-currentSize}" y="${-currentSize}" width="${currentSize*2}" height="${currentSize*2}" ${style} />`;
+            } else if (layer.type === 'triangle') {
+                layerShapeSVG += `<polygon points="${getPolygonPoints(3, currentSize)}" ${style} />`;
+            } else if (layer.type === 'hexagon') {
+                layerShapeSVG += `<polygon points="${getPolygonPoints(6, currentSize)}" ${style} />`;
+            } else if (layer.type === 'octagon') {
+                layerShapeSVG += `<polygon points="${getPolygonPoints(8, currentSize)}" ${style} />`;
+            } else if (layer.type === 'dodecagon') {
+                layerShapeSVG += `<polygon points="${getPolygonPoints(12, currentSize)}" ${style} />`;
+            } else if (layer.type === 'star') {
+                layerShapeSVG += `<polygon points="${getStarPoints(currentSize, 5)}" ${style} />`;
+            } else if (layer.type === 'burst') {
+                layerShapeSVG += `<polygon points="${getStarPoints(currentSize, 12)}" ${style} />`;
+            } else if (layer.type === 'flower') {
+                let d = `M 0 0 C ${currentSize*0.6} ${-currentSize*0.5}, ${currentSize*0.6} ${-currentSize}, 0 ${-currentSize} C ${-currentSize*0.6} ${-currentSize}, ${-currentSize*0.6} ${-currentSize*0.5}, 0 0`;
+                layerShapeSVG += `<path d="${d}" ${style} />`;
+            } else if (layer.type === 'line') {
+                layerShapeSVG += `<line x1="0" y1="0" x2="0" y2="${-currentSize * 2}" stroke="${useStroke}" stroke-width="${layer.strokeWidth}" opacity="${layer.strokeOpacity}" stroke-linecap="round"/>`;
+            }
+        }
+        
+        for (let i = 0; i < state.symmetry; i++) {
+            const angle = (360 / state.symmetry) * i;
+            layersSVG += `<g transform="rotate(${angle}) translate(0, ${-layer.distance}) rotate(${layer.rotation})">${layerShapeSVG}</g>`;
+        }
+    });
+
+    svgContent += layersSVG;
+    svgContent += `</svg>`;
+    container.innerHTML = svgContent;
+}
+
+// --- GENERATOR LOGIC ---
+function randomizeArt() {
+    state.symmetry = rndChoice([4, 6, 8, 12, 16, 24, 32, 48]);
+    state.cameraZoom = rndFloat(0.6, 2.5);
+    state.bgColor = hslToHex(rndInt(0, 360), rndInt(10, 40), rndInt(5, 20));
+    
+    let hueBase = rndInt(0, 360);
+    let numLayers = rndInt(3, 8);
+    state.layers = [];
+    
+    for(let i=0; i<numLayers; i++) {
+        let h = (hueBase + rndChoice([0, 30, 60, 120, 180, 240])) % 360;
+        let s = rndInt(40, 90);
+        let l = rndInt(40, 90);
+        let c1 = hslToHex(h, s, l);
+        
+        state.layers.push({
+            type: rndChoice(['circle', 'square', 'triangle', 'hexagon', 'octagon', 'dodecagon', 'star', 'burst', 'flower', 'line']),
+            shapeStyle: 'outline', // Hardcoded to outline
+            fillColor: 'none',     // Removed solid colors
+            fillOpacity: 0,
+            strokeColor: c1,       // Using the vibrant color for the stroke
+            strokeOpacity: rndFloat(0.4, 1.0),
+            strokeWidth: rndFloat(0.1, 0.3),
+            lineCount: rndInt(1, 8),
+            distance: rndInt(0, 400),
+            size: rndInt(20, 300),
+            rotation: rndInt(0, 360)
+        });
+    }
+    renderArt();
+}
+
+// --- EXPORT & INTERACTION LOGIC ---
+const updateDims = () => {
+    state.w = parseInt(document.getElementById('outW').value) || 2000;
+    state.h = parseInt(document.getElementById('outH').value) || 2000;
+};
+document.getElementById('outW').addEventListener('change', updateDims);
+document.getElementById('outH').addEventListener('change', updateDims);
+
+function getExportSVGString() {
+    const originalSvg = document.getElementById('master-art');
+    if (!originalSvg) return null;
+    const clone = originalSvg.cloneNode(true);
+    clone.setAttribute('width', state.w + 'px');
+    clone.setAttribute('height', state.h + 'px');
+    return new XMLSerializer().serializeToString(clone);
+}
+
+const saveSVG = () => {
+    const svgString = getExportSVGString();
+    const blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Kaleidoscope_${state.w}x${state.h}_${Date.now()}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+};
+
+const savePNG = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = state.w; 
+    canvas.height = state.h;
+    const ctx = canvas.getContext('2d');
+    
+    const img = new Image();
+    const svgString = getExportSVGString();
+    const svgBlob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(svgBlob);
+    
+    img.onload = () => {
+        ctx.fillStyle = state.bgColor;
+        ctx.fillRect(0, 0, state.w, state.h);
+        ctx.drawImage(img, 0, 0, state.w, state.h);
+        const pngUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = pngUrl;
+        link.download = `Kaleidoscope_${state.w}x${state.h}_${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+    img.src = url;
+};
+
+document.getElementById('btn-random').addEventListener('click', randomizeArt);
+document.getElementById('btn-svg').addEventListener('click', saveSVG);
+document.getElementById('btn-png').addEventListener('click', savePNG);
+
+// Boot
+randomizeArt();
+</script>
+</body>
+</html>

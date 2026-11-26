@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>A R T H O U S E // Neon Shards Fullscreen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400&display=swap" rel="stylesheet">
+<style>
+  /* Minimalist Aesthetic - Reset & Base */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    font-family: 'Montserrat', sans-serif; 
+    font-weight: 300;
+    background: #000000; 
+    color: #f0f0f0; 
+    height: 100vh; 
+    height: 100dvh; 
+    overflow: hidden; 
+  }
+  
+  /* Canvas Area */
+  #gradient-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+  }
+
+  .layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 0.5s ease;
+  }
+
+  #vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.9) 100%);
+    z-index: 2;
+    pointer-events: none;
+  }
+  
+  /* Floating Controls */
+  .fs-controls { 
+    position: absolute; 
+    bottom: 32px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: rgba(5, 5, 5, 0.85); 
+    backdrop-filter: blur(16px); 
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 255, 204, 0.2); 
+    padding: 8px 12px; 
+    border-radius: 50px; 
+    display: flex;
+    gap: 12px; 
+    z-index: 2000; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    align-items: center;
+  }
+
+  .fs-controls button { 
+    border-radius: 30px; 
+    padding: 12px 20px; 
+    font-family: inherit;
+    font-size: 11px; 
+    font-weight: 400;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid transparent; 
+    background: transparent; 
+    color: #f0f0f0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+  }
+  .fs-controls button:hover { opacity: 1; background: rgba(0, 255, 204, 0.1); }
+  .fs-controls button:active { background: rgba(0, 255, 204, 0.2); }
+  
+  .fs-controls .btn-primary { 
+    background: rgba(0, 255, 204, 0.1); 
+    border: 1px solid rgba(0, 255, 204, 0.4); 
+    color: #00ffcc;
+    opacity: 1;
+  }
+  .fs-controls .btn-primary:hover {
+    background: rgba(0, 255, 204, 0.2); 
+    border-color: #00ffcc;
+    box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+  }
+
+  /* Size Input Fields */
+  .size-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    border-left: 1px solid rgba(0, 255, 204, 0.2);
+    border-right: 1px solid rgba(0, 255, 204, 0.2);
+    height: 24px;
+  }
+
+  .size-inputs input, .size-inputs select {
+    background: transparent;
+    border: none;
+    color: #f0f0f0;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 300;
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+  }
+  
+  .size-inputs input { width: 48px; }
+  .size-inputs select { cursor: pointer; color: #00ffcc; }
+  .size-inputs select option { background: #000; color: #fff; }
+
+  .size-inputs input:focus { color: #00ffcc; }
+  .size-inputs input::-webkit-outer-spin-button,
+  .size-inputs input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  
+  .size-inputs span {
+    color: rgba(240, 240, 240, 0.5);
+    font-size: 10px;
+    margin: 0 2px;
+  }
+
+  @media (max-width: 600px) {
+    .fs-controls { bottom: 16px; padding: 10px; gap: 8px; flex-wrap: wrap; justify-content: center; border-radius: 20px; width: 95%; }
+    .fs-controls button { padding: 10px 14px; font-size: 10px; }
+    .size-inputs { border: none; width: 100%; justify-content: center; margin-bottom: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="gradient-canvas"></div>
+<div id="vignette"></div>
+
+<div class="fs-controls">
+  <button id="btn-random" class="btn-primary">Randomize</button>
+  
+  <div class="size-inputs" title="Output Dimensions">
+    <input type="number" id="inp-width" value="1920" placeholder="W">
+    <span>✕</span>
+    <input type="number" id="inp-height" value="1080" placeholder="H">
+    <select id="inp-unit">
+        <option value="px">px</option>
+        <option value="mm">mm</option>
+    </select>
+  </div>
+  
+  <button id="btn-svg">SVG</button>
+  <button id="btn-png">PNG</button>
+</div>
+
+<script>
+// --- HARMONIOUS COLOR PALETTES ---
+const palettes = [
+    [{h: 170, s: 100, l: 50}, {h: 320, s: 100, l: 60}, {h: 220, s: 100, l: 60}], // Cyberpunk
+    [{h: 90, s: 100, l: 50}, {h: 60, s: 100, l: 50}, {h: 160, s: 100, l: 40}],  // Toxic Bio
+    [{h: 330, s: 100, l: 60}, {h: 20, s: 100, l: 55}, {h: 270, s: 100, l: 65}]   // Plasma
+];
+
+const random = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+let currentComposition = [];
+
+const generateComposition = () => {
+    currentComposition = [];
+    const activePalette = palettes[random(0, palettes.length - 1)];
+
+    const getColor = (alpha) => {
+        const color = activePalette[random(0, activePalette.length - 1)];
+        return `hsla(${color.h}, ${color.s}%, ${color.l}%, ${alpha})`;
+    };
+
+    const baseColor = activePalette[random(0, activePalette.length - 1)];
+    currentComposition.push({
+        type: 'linear',
+        angle: random(0, 360),
+        stops: [
+            { offset: 0, color: `hsla(${baseColor.h}, 80%, 5%, 1)` },
+            { offset: 100, color: `hsla(${baseColor.h}, 80%, 2%, 1)` }
+        ]
+    });
+
+    const numLayers = random(4, 7);
+    for(let i = 0; i < numLayers; i++) {
+        const isLinear = Math.random() > 0.4; 
+        const hasHardEdge = Math.random() > 0.3; 
+        
+        const alpha = random(6, 9) / 10;
+        const c1 = getColor(alpha);
+        let stops = [];
+
+        if (hasHardEdge) {
+            const splitPoint = random(20, 80);
+            stops = [
+                { offset: 0, color: c1 },
+                { offset: splitPoint, color: c1 },
+                { offset: splitPoint + 0.1, color: 'rgba(0,0,0,0)' }, 
+                { offset: 100, color: 'rgba(0,0,0,0)' }
+            ];
+        } else {
+            stops = [
+                { offset: 0, color: c1 },
+                { offset: 100, color: 'rgba(0,0,0,0)' }
+            ];
+        }
+
+        if (isLinear) {
+            currentComposition.push({
+                type: 'linear',
+                angle: random(0, 360),
+                stops
+            });
+        } else {
+            currentComposition.push({
+                type: 'radial',
+                cx: random(-20, 120),
+                cy: random(-20, 120),
+                r: random(40, 120),
+                stops
+            });
+        }
+    }
+};
+
+// --- RENDERERS ---
+const renderToDOM = () => {
+    const container = document.getElementById('gradient-canvas');
+    container.innerHTML = ''; 
+    
+    currentComposition.forEach(layer => {
+        const div = document.createElement('div');
+        div.className = 'layer';
+        
+        let bgString = '';
+        if (layer.type === 'linear') {
+            const stopsStr = layer.stops.map(s => `${s.color} ${s.offset}%`).join(', ');
+            bgString = `linear-gradient(${layer.angle}deg, ${stopsStr})`;
+        } else {
+            const stopsStr = layer.stops.map(s => `${s.color} ${s.offset}%`).join(', ');
+            bgString = `radial-gradient(circle ${layer.r}vmax at ${layer.cx}% ${layer.cy}%, ${stopsStr})`;
+        }
+        
+        div.style.background = bgString;
+        if(layer !== currentComposition[0]) {
+            div.style.mixBlendMode = 'screen';
+        }
+        container.appendChild(div);
+    });
+};
+
+const renderToSVG = (width, height) => {
+    let defs = '';
+    let rects = '';
+
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const maxDim = Math.max(width, height);
+    const diag = Math.hypot(width, height) / 2;
+
+    currentComposition.forEach((layer, i) => {
+        const id = `grad${i}`;
+        let stopTags = layer.stops.map(s => `<stop offset="${s.offset}%" stop-color="${s.color}" />`).join('');
+        
+        if (layer.type === 'linear') {
+            const angleRad = (layer.angle - 90) * (Math.PI / 180);
+            
+            const x1 = centerX + diag * Math.cos(angleRad + Math.PI);
+            const y1 = centerY + diag * Math.sin(angleRad + Math.PI);
+            const x2 = centerX + diag * Math.cos(angleRad);
+            const y2 = centerY + diag * Math.sin(angleRad);
+
+            defs += `<linearGradient id="${id}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" gradientUnits="userSpaceOnUse">${stopTags}</linearGradient>`;
+        } else {
+            const cx = (layer.cx / 100) * width;
+            const cy = (layer.cy / 100) * height;
+            const r = (layer.r / 100) * maxDim;
+
+            defs += `<radialGradient id="${id}" cx="${cx}" cy="${cy}" r="${r}" gradientUnits="userSpaceOnUse">${stopTags}</radialGradient>`;
+        }
+
+        const blend = i === 0 ? '' : 'style="mix-blend-mode: screen;"';
+        rects += `<rect width="100%" height="100%" fill="url(#${id})" ${blend} />`;
+    });
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${defs}${rects}</svg>`;
+};
+
+// --- EXPORT LOGIC ---
+const getDimensionsInPixels = () => {
+    const w = parseFloat(document.getElementById('inp-width').value) || 1920;
+    const h = parseFloat(document.getElementById('inp-height').value) || 1080;
+    if (document.getElementById('inp-unit').value === 'mm') {
+        return { width: Math.round((w / 25.4) * 300), height: Math.round((h / 25.4) * 300) };
+    }
+    return { width: w, height: h };
+};
+
+const triggerDownload = (uri, filename) => {
+    const a = document.createElement('a');
+    a.href = uri;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+};
+
+const applyNewGradient = () => {
+    generateComposition();
+    renderToDOM();
+};
+
+const downloadSVG = () => {
+    const dims = getDimensionsInPixels();
+    const svgString = renderToSVG(dims.width, dims.height);
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    triggerDownload(url, `neon-shards-${Date.now()}.svg`);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+};
+
+const downloadPNG = () => {
+    const dims = getDimensionsInPixels();
+    const svgString = renderToSVG(dims.width, dims.height);
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = dims.width;
+    canvas.height = dims.height;
+    const ctx = canvas.getContext('2d');
+    
+    const img = new Image();
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    
+    img.onload = () => {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+            const pngUrl = URL.createObjectURL(blob);
+            triggerDownload(pngUrl, `neon-shards-${Date.now()}.png`);
+            setTimeout(() => URL.revokeObjectURL(pngUrl), 100);
+        }, 'image/png');
+        URL.revokeObjectURL(url);
+    };
+    img.src = url;
+};
+
+// Event Listeners
+document.getElementById('btn-random').addEventListener('click', applyNewGradient);
+document.getElementById('btn-svg').addEventListener('click', downloadSVG);
+document.getElementById('btn-png').addEventListener('click', downloadPNG);
+
+// Init
+applyNewGradient();
+</script>
+</body>
+</html>

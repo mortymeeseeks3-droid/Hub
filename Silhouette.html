@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Quantum Veil // Fullscreen</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    background: #050505; 
+    color: #f5f5f5; 
+    font-family: 'Inter', -apple-system, sans-serif; 
+    height: 100vh; 
+    height: 100dvh; 
+    overflow: hidden; 
+  }
+  
+  canvas { 
+    display: block; 
+    width: 100vw; 
+    height: 100vh; 
+  }
+  
+  /* Floating Controls */
+  .fs-controls { 
+    position: absolute; 
+    bottom: 32px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: rgba(13, 13, 13, 0.85); 
+    backdrop-filter: blur(16px); 
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(159, 255, 224, 0.2); 
+    padding: 8px 12px; 
+    border-radius: 50px; 
+    display: flex;
+    gap: 12px; 
+    z-index: 2000; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    align-items: center;
+  }
+
+  .fs-controls button { 
+    border-radius: 30px; 
+    padding: 12px 20px; 
+    font-size: 10px; 
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid transparent; 
+    background: transparent; 
+    color: #f5f5f5;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+  }
+  .fs-controls button:hover { opacity: 1; background: rgba(159, 255, 224, 0.1); }
+  
+  .fs-controls .btn-primary { 
+    background: rgba(159, 255, 224, 0.1); 
+    border: 1px solid rgba(159, 255, 224, 0.4); 
+    color: #9fffe0;
+    opacity: 1;
+  }
+  .fs-controls .btn-primary:hover {
+    background: rgba(159, 255, 224, 0.2); 
+    border-color: #9fffe0;
+  }
+
+  /* Size Inputs */
+  .size-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    border-left: 1px solid rgba(159, 255, 224, 0.2);
+    border-right: 1px solid rgba(159, 255, 224, 0.2);
+    height: 24px;
+  }
+  .size-inputs input {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 11px;
+    width: 44px;
+    text-align: center;
+    outline: none;
+  }
+  .size-inputs span { color: #555; font-size: 10px; }
+
+  @media (max-width: 600px) {
+    .fs-controls { bottom: 16px; width: 95%; gap: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div class="fs-controls">
+  <button id="btn-random" class="btn-primary">Randomize</button>
+  <div class="size-inputs">
+    <input type="number" id="outW" value="1920">
+    <span>✕</span>
+    <input type="number" id="outH" value="1080">
+  </div>
+  <button id="btn-png">PNG</button>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let w, h;
+
+function initCanvas() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0,0,w,h);
+}
+
+function applyAtmosphere() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < 12; i++) {
+        const gradient = ctx.createRadialGradient(
+            Math.random() * w, Math.random() * h, 0,
+            Math.random() * w, Math.random() * h, Math.random() * 800 + 200
+        );
+        const hue = Math.floor(Math.random() * 360);
+        gradient.addColorStop(0, `hsla(${hue}, 80%, 30%, 0.4)`);
+        gradient.addColorStop(1, 'transparent');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+    }
+    ctx.restore();
+}
+
+function applySpectralDrift(amount) {
+    const image = ctx.getImageData(0,0,w,h);
+    const d = image.data;
+    const clone = new Uint8ClampedArray(d);
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            const rx = Math.min(w - 1, Math.floor(x + amount));
+            const bx = Math.max(0, Math.floor(x - amount));
+            const ri = (y * w + rx) * 4;
+            const bi = (y * w + bx) * 4;
+            d[i] = clone[ri];
+            d[i+2] = clone[bi+2];
+        }
+    }
+    ctx.putImageData(image,0,0);
+}
+
+// New function to increase saturation to 200%
+function applySaturationPass() {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = w; 
+    tempCanvas.height = h;
+    const tCtx = tempCanvas.getContext('2d');
+    tCtx.drawImage(canvas, 0, 0);
+    
+    ctx.save();
+    ctx.filter = 'saturate(200%)';
+    ctx.globalCompositeOperation = 'copy'; // Replaces the canvas content completely
+    ctx.drawImage(tempCanvas, 0, 0);
+    ctx.restore();
+}
+
+function generate() {
+    initCanvas();
+    applyAtmosphere();
+    applySpectralDrift(Math.random() * 10 + 2);
+    applySaturationPass(); // Execute saturation pass at the end
+}
+
+// Export
+document.getElementById('btn-png').addEventListener('click', () => {
+    const sw = parseInt(document.getElementById('outW').value);
+    const sh = parseInt(document.getElementById('outH').value);
+    
+    // Create hidden canvas for export
+    const exp = document.createElement('canvas');
+    exp.width = sw; exp.height = sh;
+    const eCtx = exp.getContext('2d');
+    
+    // Copy current state
+    eCtx.drawImage(canvas, 0, 0, sw, sh);
+    
+    const url = exp.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `quantum_veil_${sw}x${sh}_${Date.now()}.png`;
+    a.click();
+});
+
+document.getElementById('btn-random').addEventListener('click', generate);
+
+window.addEventListener('resize', initCanvas);
+generate();
+</script>
+</body>
+</html>

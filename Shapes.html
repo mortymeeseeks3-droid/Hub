@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>3D Geometric Line Art Studio - Fullscreen</title>
+<style>
+  /* Minimalist Aesthetic - Reset & Base */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    font-family: "Helvetica Neue", Helvetica, "Inter", "Roboto", sans-serif;
+    font-weight: 200;
+    background: #1a1a1a; 
+    color: #00ffff; 
+    height: 100vh; 
+    height: 100dvh; 
+    overflow: hidden; 
+  }
+  
+  /* Canvas Area - Always Fullscreen */
+  .canvas-wrapper { 
+    width: 100vw;
+    height: 100vh;
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: #0d0d0d;
+  }
+  
+  #art-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  #art-container svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+  }
+  
+  /* Floating Controls */
+  .fs-controls { 
+    position: absolute; 
+    bottom: 32px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: rgba(13, 13, 13, 0.85); 
+    backdrop-filter: blur(16px); 
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 255, 255, 0.3); 
+    padding: 8px 12px; 
+    border-radius: 50px; 
+    display: flex;
+    gap: 12px; 
+    z-index: 2000; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    align-items: center;
+  }
+
+  .fs-controls button { 
+    border-radius: 30px; 
+    padding: 12px 20px; 
+    font-family: inherit;
+    font-size: 11px; 
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid transparent; 
+    background: transparent; 
+    color: #00ffff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+  }
+  .fs-controls button:hover { opacity: 1; background: rgba(0, 255, 255, 0.15); }
+  .fs-controls button:active { background: rgba(0, 255, 255, 0.25); }
+  
+  .fs-controls .btn-primary { 
+    background: rgba(0, 255, 255, 0.1); 
+    border: 1px solid rgba(0, 255, 255, 0.5); 
+    opacity: 1;
+    color: #ff00ff;
+  }
+  .fs-controls .btn-primary:hover {
+    background: rgba(255, 0, 255, 0.15); 
+    border-color: #ff00ff;
+  }
+
+  /* Thickness Slider */
+  .thickness-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border-left: 1px solid rgba(0, 255, 255, 0.3);
+  }
+
+  .thickness-control label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #00ffff;
+    opacity: 0.8;
+  }
+
+  input[type="range"] {
+    width: 80px;
+    height: 2px;
+    background: rgba(0, 255, 255, 0.4);
+    border-radius: 0;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; 
+    height: 14px;
+    border-radius: 50%;
+    background: #ff00ff;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+  /* Size Input Fields */
+  .size-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    border-left: 1px solid rgba(0, 255, 255, 0.3);
+    border-right: 1px solid rgba(0, 255, 255, 0.3);
+    height: 24px;
+  }
+
+  .size-inputs input {
+    background: transparent;
+    border: none;
+    color: #00ffff;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 300;
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+    width: 48px;
+  }
+  
+  .size-inputs input:focus { opacity: 1; }
+  .size-inputs input::-webkit-outer-spin-button,
+  .size-inputs input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  
+  .size-inputs span {
+    color: rgba(0, 255, 255, 0.6);
+    font-size: 10px;
+    margin: 0 2px;
+  }
+
+  @media (max-width: 850px) {
+    .fs-controls { bottom: 16px; padding: 10px; gap: 8px; flex-wrap: wrap; justify-content: center; border-radius: 20px; width: 95%; }
+    .fs-controls button { padding: 10px 14px; font-size: 10px; }
+    .thickness-control, .size-inputs { border: none; width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas-wrapper">
+  <div id="art-container"></div>
+</div>
+
+<div class="fs-controls">
+  <button id="btn-random" class="btn-primary">Randomize</button>
+  
+  <div class="thickness-control" title="Line Thickness">
+    <label>Thick</label>
+    <input type="range" id="valThickness" min="0.5" max="1" step="0.01" value="0.75">
+  </div>
+
+  <div class="size-inputs" title="Output Dimensions (W x H)">
+    <input type="number" id="outW" value="2400" placeholder="W">
+    <span>✕</span>
+    <input type="number" id="outH" value="2400" placeholder="H">
+  </div>
+  
+  <button id="btn-svg">SVG</button>
+  <button id="btn-png">PNG</button>
+</div>
+
+<script>
+// --- CORE UTILITIES & STATE ---
+const state = {
+    shape: 'ellipse',
+    pattern: 'torus',
+    palette: 'cyber-neon',
+    customC1: '#00ffff',
+    customC2: '#ff00ff',
+    frames: 120,
+    twist: 5,
+    scaleVar: 70,
+    thickness: 0.75, // Scaled to the new 0.5 - 1.0 range
+    w: 2400,
+    h: 2400
+};
+
+const shapes = ['line', 'ellipse', '3', '4', '5', '6', '8', 'circle'];
+const patterns = ['torus', 'infinity', 'shell', 'tunnel', 'wave', 'spiral'];
+const palettes = ['cyber-neon', 'custom', 'hyper-mint', 'synthwave', 'bright-rainbow', 'solar-flare', 'electric-emerald', 'pure-gold', 'monochrome'];
+const viewBoxSize = 1000; // Decreased from 1400 to make elements draw much larger on screen
+
+const hexToRgb = (hex) => {
+    let r = parseInt(hex.slice(1, 3), 16),
+        g = parseInt(hex.slice(3, 5), 16),
+        b = parseInt(hex.slice(5, 7), 16);
+    return {r, g, b};
+};
+
+const getRandomHex = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+
+// --- DRAWING LOGIC ---
+const createPath = (type, radius) => {
+    if (type === 'circle') return `M ${radius},0 A ${radius},${radius} 0 1,1 -${radius},0 A ${radius},${radius} 0 1,1 ${radius},0 Z`;
+    if (type === 'ellipse') return `M ${radius},0 A ${radius},${radius*0.3} 0 1,1 -${radius},0 A ${radius},${radius*0.3} 0 1,1 ${radius},0 Z`;
+    if (type === 'line') return `M -${radius},0 L ${radius},0`;
+
+    let points = parseInt(type);
+    let pathData = "";
+    const angleStep = (Math.PI * 2) / points;
+    for (let i = 0; i < points; i++) {
+        const angle = angleStep * i - Math.PI / 2;
+        const x = radius * Math.cos(angle);
+        const y = radius * Math.sin(angle);
+        pathData += (i === 0 ? "M" : "L") + `${x.toFixed(2)},${y.toFixed(2)}`;
+    }
+    return pathData + "Z";
+};
+
+// Colors boosted for a "visually brighter" look
+const getGradientColor = (palette, ratio) => {
+    let r, g, b;
+    switch(palette) {
+        case 'cyber-neon':
+            r = Math.floor(255 * ratio); g = Math.floor(255 * (1 - ratio)); b = 255; break;
+        case 'custom':
+            const c1 = hexToRgb(state.customC1);
+            const c2 = hexToRgb(state.customC2);
+            r = Math.floor(c1.r + (c2.r - c1.r) * ratio);
+            g = Math.floor(c1.g + (c2.g - c1.g) * ratio);
+            b = Math.floor(c1.b + (c2.b - c1.b) * ratio);
+            break;
+        case 'hyper-mint': 
+            r = 100 + Math.floor(50 * ratio); g = 255; b = 200 + Math.floor(55 * ratio); break;
+        case 'synthwave':
+            r = 255; g = Math.floor(150 * (1 - ratio)); b = 255; break;
+        case 'bright-rainbow':
+            r = Math.floor(Math.sin(ratio * Math.PI * 2) * 127 + 128);
+            g = Math.floor(Math.sin(ratio * Math.PI * 2 + 2) * 127 + 128);
+            b = Math.floor(Math.sin(ratio * Math.PI * 2 + 4) * 127 + 128);
+            // Boost overall brightness
+            r = Math.min(255, r + 50); g = Math.min(255, g + 50); b = Math.min(255, b + 50);
+            break;
+        case 'solar-flare':
+            r = 255; g = Math.floor(200 * ratio) + 55; b = Math.floor(100 * ratio); break;
+        case 'electric-emerald':
+            r = Math.floor(100 * ratio); g = 255; b = Math.floor(255 * ratio); break;
+        case 'pure-gold':
+            r = 255; g = 230 - Math.floor(40 * ratio); b = Math.floor(100 * ratio); break;
+        case 'monochrome':
+        default:
+            const val = Math.floor(180 + 75 * ratio); r = g = b = val; break;
+    }
+    return `rgb(${r},${g},${b})`;
+};
+
+function generateSvgContent() {
+    let svgContent = `<rect width="100%" height="100%" fill="#0d0d0d"/>`;
+    const center = viewBoxSize / 2;
+    const baseRadius = 450; // Increased base radius to scale the actual shapes larger
+    const scaleVarDecimal = state.scaleVar / 100;
+
+    for (let i = 0; i < state.frames; i++) {
+        const t = i / (state.frames - 1 || 1); 
+        let cx = center, cy = center, rot = 0;
+        let scaleX = 1, scaleY = 1;
+
+        switch(state.pattern) {
+            case 'torus':
+                cx = center + 250 * Math.cos(t * Math.PI * 2);
+                cy = center + 250 * Math.sin(t * Math.PI * 2);
+                rot = t * 360 * state.twist;
+                scaleX = 1 - scaleVarDecimal * Math.abs(Math.sin(t * Math.PI * 2 * state.twist));
+                scaleY = 0.4;
+                break;
+            case 'infinity':
+                cx = center + 320 * Math.sin(t * Math.PI * 2 * (state.twist/4));
+                cy = center + 160 * Math.sin(t * Math.PI * 4 * (state.twist/4));
+                rot = t * 360 * (state.twist/2);
+                scaleX = scaleY = 1 - scaleVarDecimal * Math.abs(Math.sin(t * Math.PI * 2));
+                break;
+            case 'shell':
+                const angle = t * Math.PI * 2 * state.twist;
+                const spiralR = 15 * Math.exp((t**0.5) * 3.2); 
+                cx = center + spiralR * Math.cos(angle);
+                cy = center + spiralR * Math.sin(angle);
+                rot = angle * (180/Math.PI) + 45;
+                scaleX = scaleY = 0.05 + 0.95 * t * (1 - scaleVarDecimal/2);
+                scaleY *= (1 - scaleVarDecimal * t); 
+                break;
+            case 'tunnel':
+                cx = center + 80 * Math.cos(t * Math.PI * 2 * state.twist);
+                cy = center + 80 * Math.sin(t * Math.PI * 2 * state.twist);
+                rot = t * 360 * state.twist;
+                scaleX = scaleY = 0.1 + 0.9 * t;
+                scaleX *= 1 - scaleVarDecimal * 0.5 * t;
+                break;
+            case 'wave':
+                cx = center - 300 + 600 * t; 
+                cy = center + 250 * Math.sin(t * Math.PI * 2 * (state.twist/2));
+                rot = Math.cos(t * Math.PI * 2 * (state.twist/2)) * 75;
+                scaleX = scaleY = 0.5;
+                scaleY *= 1 - scaleVarDecimal * Math.abs(Math.sin(t * Math.PI * 2 * (state.twist/2)));
+                break;
+            case 'spiral':
+                cx = center + 170 * t * Math.cos(t * Math.PI * 2 * state.twist);
+                cy = center + 170 * t * Math.sin(t * Math.PI * 2 * state.twist);
+                rot = t * 360 * state.twist;
+                scaleX = scaleY = 1 - scaleVarDecimal * t;
+                break;
+        }
+
+        const pathStr = createPath(state.shape, baseRadius);
+        const color = getGradientColor(state.palette, t);
+        
+        svgContent += `
+            <g transform="translate(${cx}, ${cy}) rotate(${rot}) scale(${scaleX}, ${scaleY})">
+                <path d="${pathStr}" stroke="${color}" />
+            </g>
+        `;
+    }
+    return svgContent;
+}
+
+const renderArt = () => {
+    const container = document.getElementById('art-container');
+    let svgStr = `<svg id="master-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewBoxSize} ${viewBoxSize}" fill="none" stroke-width="${state.thickness}" stroke-linejoin="round" stroke-linecap="round" shape-rendering="geometricPrecision" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">`;
+    svgStr += generateSvgContent();
+    svgStr += `</svg>`;
+    container.innerHTML = svgStr;
+};
+
+// --- INTERACTION & LOGIC ---
+const randomizeControls = () => {
+    state.shape = shapes[Math.floor(Math.random() * shapes.length)];
+    state.pattern = patterns[Math.floor(Math.random() * patterns.length)];
+    state.palette = palettes[Math.floor(Math.random() * palettes.length)];
+    
+    if (state.palette === 'custom') {
+        state.customC1 = getRandomHex();
+        state.customC2 = getRandomHex();
+    }
+
+    state.frames = Math.floor(Math.random() * 300) + 50;
+    state.twist = Math.floor(Math.random() * 15) + 1;
+    state.scaleVar = Math.floor(Math.random() * 90) + 10;
+    
+    // Lock thickness bounds to 0.5 - 1.0
+    state.thickness = parseFloat((Math.random() * 0.5 + 0.5).toFixed(2));
+    document.getElementById('valThickness').value = state.thickness;
+    
+    renderArt();
+};
+
+document.getElementById('valThickness').addEventListener('input', (e) => {
+    state.thickness = parseFloat(e.target.value);
+    renderArt();
+});
+
+// Sync output dimensions
+const updateDims = () => {
+    state.w = parseInt(document.getElementById('outW').value) || 2400;
+    state.h = parseInt(document.getElementById('outH').value) || 2400;
+};
+document.getElementById('outW').addEventListener('change', updateDims);
+document.getElementById('outH').addEventListener('change', updateDims);
+
+// --- EXPORT SYSTEM ---
+const getExportSVGString = () => {
+    let svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${state.w}px" height="${state.h}px" viewBox="0 0 ${viewBoxSize} ${viewBoxSize}" fill="none" stroke-width="${state.thickness}" stroke-linejoin="round" stroke-linecap="round" shape-rendering="geometricPrecision" preserveAspectRatio="xMidYMid slice">`;
+    svgStr += generateSvgContent();
+    svgStr += `</svg>`;
+    return svgStr;
+};
+
+const downloadFile = (filename, url) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const saveSVG = () => {
+    const svgString = getExportSVGString();
+    const blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    downloadFile(`3D_Geometry_${state.w}x${state.h}_${Date.now()}.svg`, url);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+};
+
+const savePNG = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = state.w; 
+    canvas.height = state.h;
+    const ctx = canvas.getContext('2d');
+    
+    const img = new Image();
+    const svgString = getExportSVGString();
+    const svgBlob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(svgBlob);
+    
+    img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const pngUrl = canvas.toDataURL('image/png');
+        downloadFile(`3D_Geometry_${state.w}x${state.h}_${Date.now()}.png`, pngUrl);
+        URL.revokeObjectURL(url);
+    };
+    img.src = url;
+};
+
+document.getElementById('btn-random').addEventListener('click', randomizeControls);
+document.getElementById('btn-svg').addEventListener('click', saveSVG);
+document.getElementById('btn-png').addEventListener('click', savePNG);
+
+// Init
+randomizeControls();
+</script>
+</body>
+</html>

@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="color-scheme" content="only light"> 
+    <title>HexaGen</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&display=swap');
+
+        :root {
+            color-scheme: dark; 
+            --bg: #0a0a0a;
+            --surface: #1a1a1a;
+            --text-main: #ffffff;
+            --text-dim: #aaaaaa; 
+            --line: #444444; 
+            --accent: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Montserrat', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 10px;
+            text-align: center;
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--line);
+            display: none;
+        }
+
+        h1 {
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            margin-right: -6px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 70% PREVIEW SPLIT */
+        .preview-wrapper {
+            flex: 1; 
+            width: 100%;
+            height: 100vh;
+            background-color: #121212;
+            background-image: 
+                linear-gradient(45deg, #1a1a1a 25%, transparent 25%), 
+                linear-gradient(-45deg, #1a1a1a 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1a1a1a 75%), 
+                linear-gradient(-45deg, transparent 75%, #1a1a1a 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #preview {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* 30% CONTROLS SPLIT - STRICTLY NO SCROLL */
+        .controls-panel {
+            flex: 3; 
+            display: none;
+            flex-direction: column;
+            border-top: 1px solid var(--line);
+            background-color: var(--bg);
+        }
+
+        .controls-panel.visible {
+            display: flex;
+        }
+            overflow: hidden; 
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--line);
+            background-color: var(--surface);
+            flex-shrink: 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 0;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            color: var(--text-main);
+            background-color: var(--bg);
+            box-shadow: inset 0 -2px 0 var(--accent);
+        }
+
+        .tab-pane {
+            display: none;
+            flex: 1;
+            padding: 12px 16px;
+            flex-direction: column;
+            justify-content: center; 
+            gap: 12px; 
+            overflow: hidden; 
+        }
+
+        .tab-pane.active {
+            display: flex;
+        }
+
+        /* --- HORIZONTAL COMPACT CONTROLS --- */
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .control-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        label {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Compact Stepper Inputs */
+        .stepper {
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: var(--surface);
+            width: 120px; 
+        }
+
+        .stepper button {
+            width: 32px;
+            height: 32px;
+            background: transparent;
+            color: var(--text-main);
+            border: none;
+            font-size: 18px;
+            font-weight: 300;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stepper button:active { background-color: #333; }
+
+        .stepper input {
+            flex: 1;
+            text-align: center;
+            background: transparent;
+            color: var(--text-main);
+            border: none;
+            border-left: 1px solid var(--line);
+            border-right: 1px solid var(--line);
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            height: 32px;
+            outline: none;
+            width: 100%; 
+        }
+
+        select {
+            appearance: none;
+            background: var(--surface);
+            color: var(--text-main);
+            border: 1px solid var(--line);
+            padding: 0 10px;
+            font-family: inherit;
+            font-size: 12px;
+            height: 32px;
+            outline: none;
+            border-radius: 4px;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 32px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: var(--surface);
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--text-main);
+            cursor: pointer;
+            text-transform: none;
+        }
+
+        input[type="checkbox"] {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 1px solid var(--text-dim);
+            border-radius: 3px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Dimension Inputs */
+        .dim-inputs {
+            display: flex;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: var(--surface);
+            align-items: center;
+            height: 32px;
+        }
+
+        .dim-inputs input {
+            flex: 1;
+            text-align: center;
+            background: transparent;
+            color: var(--text-main);
+            border: none;
+            font-family: inherit;
+            font-size: 13px;
+            height: 32px;
+            outline: none;
+            width: 0; 
+        }
+
+        .dim-inputs span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            border-left: 1px solid var(--line);
+            border-right: 1px solid var(--line);
+            width: 24px;
+            height: 32px;
+            flex-shrink: 0;
+            font-size: 12px;
+        }
+
+        .dim-inputs button {
+            border: none;
+            background: transparent;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            width: 50px;
+            height: 32px;
+            border-left: 1px solid var(--line);
+            cursor: pointer;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .dim-inputs button:active { background-color: #333; }
+
+        /* Bottom Action Buttons */
+        .bottom-actions {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 1px;
+            background-color: var(--line);
+            flex-shrink: 0;
+        }
+
+        .bottom-actions button {
+            background-color: var(--bg);
+            color: var(--text-main);
+            border: none;
+            padding: 14px 0;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .bottom-actions button:active { background-color: var(--surface); }
+
+        .hidden { display: none !important; }
+
+        /* Floating Toolbar */
+        .floating-toolbar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.9);
+            border: 1px solid var(--line);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 10000;
+            align-items: center;
+        }
+
+        .floating-toolbar button {
+            background: transparent;
+            border: 1px solid var(--line);
+            color: var(--text-main);
+            padding: 8px 16px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .floating-toolbar button:hover {
+            border-color: var(--accent);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .floating-toolbar button:active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .floating-toolbar button.generate {
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        @media (min-width: 768px) {
+            .main-content { flex-direction: row; }
+            .preview-wrapper { flex: 1; }
+            .controls-panel {
+                flex: 0 0 350px;
+                border-top: none;
+                border-left: 1px solid var(--line);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Hexagen</h1>
+    </header>
+
+    <div class="main-content">
+        <div class="preview-wrapper">
+            <div id="preview"></div>
+            <div class="floating-toolbar">
+                <button class="generate" onclick="randomizeAll()">Generate</button>
+                <button onclick="downloadSVG()">SVG</button>
+                <button id="btnPNG" onclick="downloadPNG()">PNG</button>
+            </div>
+        </div>
+
+        <div class="controls-panel">
+            
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('tab-shape')">Shape</button>
+                <button class="tab-btn" onclick="switchTab('tab-color')">Color</button>
+                <button class="tab-btn" onclick="switchTab('tab-export')">Export</button>
+            </div>
+
+            <!-- TAB 1: SHAPE -->
+            <div id="tab-shape" class="tab-pane active">
+                
+                <div class="control-row">
+                    <label>Base Geometry</label>
+                    <select id="baseShape" style="width: 120px;" onchange="generatePattern()">
+                        <option value="hexagon">Hexagon</option>
+                        <option value="triangle">Triangle</option>
+                    </select>
+                </div>
+
+                <div class="control-row">
+                    <label>Scale (Size)</label>
+                    <div class="stepper">
+                        <button onclick="changeVal('size', -10, 10, 800)">-</button>
+                        <input type="number" id="size" value="120" readonly>
+                        <button onclick="changeVal('size', 10, 10, 800)">+</button>
+                    </div>
+                </div>
+
+                <div class="control-row">
+                    <label>Line Weight</label>
+                    <div class="stepper">
+                        <button onclick="changeVal('stroke', -1, 1, 100)">-</button>
+                        <input type="number" id="stroke" value="12" readonly>
+                        <button onclick="changeVal('stroke', 1, 1, 100)">+</button>
+                    </div>
+                </div>
+
+                <div class="control-row">
+                    <label>Complexity (%)</label>
+                    <div class="stepper">
+                        <button onclick="changeVal('complexity', -5, 0, 100)">-</button>
+                        <input type="number" id="complexity" value="60" readonly>
+                        <button onclick="changeVal('complexity', 5, 0, 100)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: COLOR -->
+            <div id="tab-color" class="tab-pane">
+                <div class="grid-2">
+                    <div class="control-col">
+                        <label>Stroke Color</label>
+                        <input type="color" id="strokeColor" value="#ffffff" onchange="generatePattern()">
+                    </div>
+                    <div class="control-col">
+                        <label>Background</label>
+                        <input type="color" id="bgColor" value="#0a0a0a" onchange="generatePattern()">
+                    </div>
+                </div>
+
+                <div class="control-row">
+                    <label>Fill Style</label>
+                    <select id="fillStyle" style="width: 150px;" onchange="toggleGradients(); generatePattern()">
+                        <option value="solid" selected>Monochrome</option>
+                        <option value="gradient">Gradient</option>
+                    </select>
+                </div>
+
+                <div class="grid-2" id="gradientControls">
+                    <div class="control-col">
+                        <label>Gradient A</label>
+                        <input type="color" id="grad1" value="#bb86fc" onchange="generatePattern()">
+                    </div>
+                    <div class="control-col">
+                        <label>Gradient B</label>
+                        <input type="color" id="grad2" value="#03dac6" onchange="generatePattern()">
+                    </div>
+                </div>
+
+                <label class="checkbox-label" style="justify-content: center;">
+                    <input type="checkbox" id="bgTransparent" onchange="toggleBg(); generatePattern()"> 
+                    Export With Transparent Background
+                </label>
+            </div>
+
+            <!-- TAB 3: EXPORT -->
+            <div id="tab-export" class="tab-pane">
+                <div class="control-col">
+                    <label>Final Image Dimensions</label>
+                    <div class="dim-inputs">
+                        <input type="number" id="outWidth" value="1080" placeholder="W" onchange="generatePattern()">
+                        <span>&times;</span>
+                        <input type="number" id="outHeight" value="2150" placeholder="H" onchange="generatePattern()">
+                        <button id="unitToggle" onclick="toggleUnit()">PX</button>
+                    </div>
+                </div>
+                <p style="font-size: 10px; color: var(--text-dim); text-align: center; line-height: 1.4;">
+                    Tapping to <strong>MM</strong> multiplies resolution and embeds true 600 DPI metadata into the PNG.
+                </p>
+            </div>
+
+            <div class="bottom-actions">
+                <button onclick="randomizeAll()">Random</button>
+                <button onclick="downloadSVG()">SVG</button>
+                <button id="btnPNG" onclick="downloadPNG()">PNG</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let masterSVGString = "";
+        let currentUnit = "px";
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function changeVal(id, delta, min, max) {
+            const el = document.getElementById(id);
+            let val = parseInt(el.value) + delta;
+            if (val < min) val = min;
+            if (val > max) val = max;
+            el.value = val;
+            generatePattern();
+        }
+
+        function toggleBg() {
+            const isTransparent = document.getElementById('bgTransparent').checked;
+            document.getElementById('bgColor').disabled = isTransparent;
+            if(isTransparent) {
+                document.getElementById('bgColor').style.opacity = '0.2';
+            } else {
+                document.getElementById('bgColor').style.opacity = '1';
+            }
+        }
+
+        function toggleGradients() {
+            const style = document.getElementById('fillStyle').value;
+            const gradControls = document.getElementById('gradientControls');
+            if (style === 'gradient') {
+                gradControls.classList.remove('hidden');
+            } else {
+                gradControls.classList.add('hidden');
+            }
+        }
+        
+        function toggleUnit() {
+            const wInput = document.getElementById('outWidth');
+            const hInput = document.getElementById('outHeight');
+            const btn = document.getElementById('unitToggle');
+            
+            if (currentUnit === 'px') {
+                currentUnit = 'mm';
+                btn.innerText = 'MM';
+                if (parseInt(wInput.value) === 1080) wInput.value = 210; 
+                if (parseInt(hInput.value) === 2150) hInput.value = 331; 
+            } else {
+                currentUnit = 'px';
+                btn.innerText = 'PX';
+                if (parseInt(wInput.value) === 210) wInput.value = 1080;
+                if (parseInt(hInput.value) === 331) hInput.value = 2150;
+            }
+            generatePattern();
+        }
+
+        function getRandomHex() {
+            return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+        }
+
+        function randomizeAll() {
+            const shapes = ['hexagon', 'triangle'];
+            document.getElementById('baseShape').value = shapes[Math.floor(Math.random() * shapes.length)];
+
+            document.getElementById('strokeColor').value = getRandomHex();
+            document.getElementById('bgColor').value = getRandomHex();
+            document.getElementById('grad1').value = getRandomHex();
+            document.getElementById('grad2').value = getRandomHex();
+
+            document.getElementById('size').value = Math.floor(Math.random() * (250 - 50 + 1)) + 50;
+            document.getElementById('stroke').value = Math.floor(Math.random() * (20 - 4 + 1)) + 4;
+            document.getElementById('complexity').value = Math.floor(Math.random() * 101);
+
+            generatePattern();
+        }
+
+        function generatePattern() {
+            let inputW = parseFloat(document.getElementById('outWidth').value);
+            let inputH = parseFloat(document.getElementById('outHeight').value);
+            
+            if (isNaN(inputW) || inputW <= 0) inputW = (currentUnit === 'px') ? 1080 : 210;
+            if (isNaN(inputH) || inputH <= 0) inputH = (currentUnit === 'px') ? 2150 : 331;
+
+            let width, height;
+            
+            if (currentUnit === 'mm') {
+                width = Math.round(inputW * (600 / 25.4));
+                height = Math.round(inputH * (600 / 25.4));
+            } else {
+                width = Math.round(inputW);
+                height = Math.round(inputH);
+            }
+            
+            if (width > 12000) width = 12000;
+            if (height > 12000) height = 12000;
+
+            const baseShape = document.getElementById('baseShape').value;
+            const size = parseInt(document.getElementById('size').value);
+            const strokeWidth = parseInt(document.getElementById('stroke').value);
+            const complexity = parseInt(document.getElementById('complexity').value) / 100;
+            
+            const strokeColor = document.getElementById('strokeColor').value;
+            const bgColor = document.getElementById('bgColor').value;
+            const isTransparentBg = document.getElementById('bgTransparent').checked;
+            
+            const fillStyle = document.getElementById('fillStyle').value;
+            const grad1 = document.getElementById('grad1').value;
+            const grad2 = document.getElementById('grad2').value;
+
+            let svgContent = `<?xml version="1.0" standalone="no"?>\r\n`;
+            svgContent += `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid slice" width="${width}" height="${height}">`;
+            
+            if (fillStyle === 'gradient') {
+                svgContent += `
+                <defs>
+                    <linearGradient id="gradTop" x1="0%" y1="100%" x2="0%" y2="0%">
+                        <stop offset="0%" stop-color="${grad1}" stop-opacity="0.9" />
+                        <stop offset="100%" stop-color="${grad2}" stop-opacity="0.9" />
+                    </linearGradient>
+                    <linearGradient id="gradLeft" x1="100%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="${grad2}" stop-opacity="0.7" />
+                        <stop offset="100%" stop-color="${grad1}" stop-opacity="0.2" />
+                    </linearGradient>
+                    <linearGradient id="gradRight" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="${grad1}" stop-opacity="0.8" />
+                        <stop offset="100%" stop-color="${grad2}" stop-opacity="0.4" />
+                    </linearGradient>
+                </defs>`;
+            }
+            
+            if (!isTransparentBg) {
+                svgContent += `<rect width="${width}" height="${height}" x="0" y="0" fill="${bgColor}" />`;
+            }
+
+            let fills = [];
+            if (fillStyle === 'gradient') {
+                fills = [
+                    { fill: 'none', opacity: 1 },
+                    { fill: 'url(#gradTop)', opacity: 1 },
+                    { fill: 'url(#gradLeft)', opacity: 1 },
+                    { fill: 'url(#gradRight)', opacity: 1 }
+                ];
+            } else {
+                fills = [
+                    { fill: 'none', opacity: 1 },
+                    { fill: strokeColor, opacity: 0.9 },
+                    { fill: strokeColor, opacity: 0.5 },
+                    { fill: strokeColor, opacity: 0.15 }
+                ];
+            }
+
+            const getFill = () => fills[Math.floor(Math.random() * fills.length)];
+
+            if (baseShape === 'hexagon') {
+                const r = size;
+                const w = 2 * r;
+                const h = Math.sqrt(3) * r;
+                const cols = Math.ceil(width / (w * 0.75)) + 2;
+                const rows = Math.ceil(height / h) + 2;
+
+                for (let col = -2; col <= cols; col++) {
+                    for (let row = -2; row <= rows; row++) {
+                        const cx = col * w * 0.75;
+                        const cy = row * h + (Math.abs(col % 2) === 1 ? h/2 : 0);
+                        
+                        const points = [];
+                        for(let i = 0; i < 6; i++) {
+                            const angle = Math.PI / 180 * (60 * i);
+                            points.push({x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle)});
+                        }
+
+                        svgContent += `<polygon points="${points.map(p => p.x+','+p.y).join(' ')}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>`;
+                        
+                        if (Math.random() < complexity) {
+                            const p1 = `${cx},${cy} ${points[0].x},${points[0].y} ${points[1].x},${points[1].y} ${points[2].x},${points[2].y}`;
+                            svgContent += `<polygon points="${p1}" fill="${getFill().fill}" fill-opacity="${getFill().opacity}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>`;
+
+                            const p2 = `${cx},${cy} ${points[2].x},${points[2].y} ${points[3].x},${points[3].y} ${points[4].x},${points[4].y}`;
+                            svgContent += `<polygon points="${p2}" fill="${getFill().fill}" fill-opacity="${getFill().opacity}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>`;
+
+                            const p3 = `${cx},${cy} ${points[4].x},${points[4].y} ${points[5].x},${points[5].y} ${points[0].x},${points[0].y}`;
+                            svgContent += `<polygon points="${p3}" fill="${getFill().fill}" fill-opacity="${getFill().opacity}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>`;
+                        }
+                    }
+                }
+            } 
+            else if (baseShape === 'triangle') {
+                const w = size * 1.5;
+                const h = w * Math.sqrt(3) / 2;
+                const cols = Math.ceil(width / w) + 2;
+                const rows = Math.ceil(height / h) + 2;
+
+                for (let row = -2; row <= rows; row++) {
+                    for (let col = -2; col <= cols; col++) {
+                        const cx = col * w + (Math.abs(row % 2) === 1 ? w/2 : 0);
+                        const cy = row * h;
+
+                        if (Math.random() < complexity || complexity > 0.1) {
+                            const pUp = `${cx},${cy+h} ${cx+w/2},${cy} ${cx+w},${cy+h}`;
+                            let fillStyle = Math.random() < complexity ? getFill() : {fill: 'none', opacity: 1};
+                            svgContent += `<polygon points="${pUp}" fill="${fillStyle.fill}" fill-opacity="${fillStyle.opacity}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>`;
+                        }
+
+                        if (Math.random() < complexity || complexity > 0.1) {
+                            const pDown = `${cx+w/2},${cy} ${cx+w},${cy+h} ${cx+w*1.5},${cy}`;
+                            let fillStyle = Math.random() < complexity ? getFill() : {fill: 'none', opacity: 1};
+                            svgContent += `<polygon points="${pDown}" fill="${fillStyle.fill}" fill-opacity="${fillStyle.opacity}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>`;
+                        }
+                    }
+                }
+            }
+
+            svgContent += `</svg>`;
+            masterSVGString = svgContent;
+
+            const b64 = btoa(unescape(encodeURIComponent(masterSVGString)));
+            document.getElementById('preview').innerHTML = `<img src="data:image/svg+xml;base64,${b64}" alt="Pattern Preview">`;
+        }
+
+        function downloadSVG() {
+            const blob = new Blob([masterSVGString], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url, `hexagen-${Date.now()}.svg`);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        }
+
+        // ==========================================
+        // PNG BINARY DPI INJECTOR
+        // ==========================================
+        function changeDpiBlob(blob, dpi) {
+            return new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const arrayBuffer = e.target.result;
+                    const dataView = new DataView(arrayBuffer);
+                    const bytes = new Uint8Array(arrayBuffer);
+
+                    const newChunks = [];
+                    let offset = 8; 
+                    newChunks.push(bytes.slice(0, 8));
+
+                    // Build 600 DPI pHYs chunk
+                    const ppm = Math.round(dpi / 0.0254);
+                    const physChunk = new Uint8Array(21);
+                    const physView = new DataView(physChunk.buffer);
+                    physView.setUint32(0, 9);
+                    physChunk.set([112, 72, 89, 115], 4); // "pHYs" string
+                    physView.setUint32(8, ppm);
+                    physView.setUint32(12, ppm);
+                    physChunk[16] = 1; // Meter unit
+                    
+                    // CRC Checksum calculation
+                    let crc = 0 ^ (-1);
+                    const crcTable = [];
+                    for(let n=0; n<256; n++){
+                        let c = n;
+                        for(let k=0; k<8; k++){ c = ((c&1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1)); }
+                        crcTable[n] = c;
+                    }
+                    for (let i=4; i<17; i++ ) { crc = (crc >>> 8) ^ crcTable[(crc ^ physChunk[i]) & 0xFF]; }
+                    physView.setUint32(17, (crc ^ (-1)) >>> 0);
+
+                    let physInserted = false;
+
+                    while (offset < bytes.length) {
+                        const length = dataView.getUint32(offset);
+                        const type = String.fromCharCode(...bytes.slice(offset + 4, offset + 8));
+                        const chunkEnd = offset + 12 + length;
+
+                        if (type === 'pHYs') {
+                            // Strip old DPI chunk
+                        } else {
+                            newChunks.push(bytes.slice(offset, chunkEnd));
+                            if (type === 'IHDR') {
+                                newChunks.push(physChunk); // Inject right after IHDR
+                                physInserted = true;
+                            }
+                        }
+                        offset = chunkEnd;
+                    }
+
+                    if (!physInserted) {
+                        resolve(blob); 
+                        return;
+                    }
+
+                    const totalLength = newChunks.reduce((acc, val) => acc + val.length, 0);
+                    const newBytes = new Uint8Array(totalLength);
+                    let currentOffset = 0;
+                    for (const chunk of newChunks) {
+                        newBytes.set(chunk, currentOffset);
+                        currentOffset += chunk.length;
+                    }
+
+                    resolve(new Blob([newBytes], {type: 'image/png'}));
+                };
+                reader.readAsArrayBuffer(blob);
+            });
+        }
+
+        function downloadPNG() {
+            const btn = document.getElementById('btnPNG');
+            btn.innerText = "WAIT...";
+            
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(masterSVGString, "text/xml");
+                const svgNode = xmlDoc.getElementsByTagName("svg")[0];
+                
+                canvas.width = svgNode.getAttribute('width');
+                canvas.height = svgNode.getAttribute('height');
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.toBlob(async function(blob) {
+                    let finalBlob = blob;
+                    
+                    // If in MM mode, rewrite the PNG binary to force 600 DPI
+                    if (currentUnit === 'mm') {
+                        finalBlob = await changeDpiBlob(blob, 600);
+                    }
+                    
+                    const url = URL.createObjectURL(finalBlob);
+                    triggerDownload(url, `hexagen-${currentUnit === 'mm' ? '600dpi-' : ''}${Date.now()}.png`);
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                    
+                    btn.innerText = "PNG";
+                }, "image/png");
+            };
+            
+            const svgBlob = new Blob([masterSVGString], { type: "image/svg+xml;charset=utf-8" });
+            img.src = URL.createObjectURL(svgBlob);
+        }
+
+        function triggerDownload(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        window.onload = () => {
+            document.getElementById('fillStyle').value = 'solid';
+            document.getElementById('bgTransparent').checked = false;
+            toggleBg();
+            toggleGradients();
+            randomizeAll(); 
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Asymmetry Studio - Sharp Outward Bleed</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --surface: #0a0a0a;
+            --text: #eaeaea;
+            --text-dim: #777777;
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #facc15; 
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Jost', sans-serif;
+            font-weight: 200;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 24px;
+            text-align: center;
+            border-bottom: 0.5px solid var(--border);
+            display: none;
+        }
+
+        h1 {
+            font-size: 13px;
+            font-weight: 300;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            gap: 24px;
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            background-color: var(--surface);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        .controls {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #art-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #art-container svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Floating Toolbar */
+        .floating-toolbar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(5, 5, 5, 0.9);
+            border: 0.5px solid var(--border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 12px 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 10000;
+            align-items: center;
+        }
+
+        .floating-toolbar button {
+            background: transparent;
+            color: var(--text);
+            border: 0.5px solid var(--border);
+            padding: 12px 20px;
+            font-family: 'Jost', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .floating-toolbar button:active {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .floating-toolbar button.btn-generate {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .floating-toolbar button.btn-generate:active {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--text);
+            border: 0.5px solid var(--border);
+            padding: 16px;
+            font-family: 'Jost', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:active {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .btn-generate {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 10px rgba(250, 204, 21, 0.05) inset;
+        }
+        
+        .btn-generate:active {
+            background: var(--accent);
+            color: var(--bg);
+            box-shadow: 0 0 15px rgba(250, 204, 21, 0.3);
+        }
+
+        .settings-row {
+            display: grid;
+            gap: 12px;
+        }
+
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-3 { grid-template-columns: 1fr 1fr 80px; }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-group label {
+            position: absolute;
+            top: -8px;
+            left: 8px;
+            background: var(--bg);
+            padding: 0 4px;
+            font-size: 9px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+
+        input, select {
+            width: 100%;
+            background: transparent;
+            color: var(--text);
+            border: 0.5px solid var(--border);
+            padding: 14px 12px;
+            font-family: 'Jost', sans-serif;
+            font-size: 14px;
+            font-weight: 300;
+            outline: none;
+            appearance: none;
+            border-radius: 0;
+            position: relative;
+        }
+
+        select { cursor: pointer; }
+        #dl-unit { text-align: center; }
+
+        input:focus, select:focus {
+            border-color: var(--accent);
+        }
+
+        input[type="color"] {
+            padding: 0;
+            height: 49px;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 4px;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Asymmetry Studio</h1>
+    </header>
+
+    <main>
+        <div class="canvas-wrapper">
+            <div id="art-container"></div>
+            <div class="floating-toolbar">
+                <button class="btn btn-generate" onclick="randomizePaletteAndGenerate()">Generate</button>
+                <button class="btn" onclick="downloadSVG()">SVG ↓</button>
+                <button class="btn" onclick="downloadPNG()">PNG ↓</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-generate" onclick="generateArt()">Generate Sharp Bleeds</button>
+
+            <div class="settings-row grid-2">
+                <div class="input-group">
+                    <label>Color 1</label>
+                    <input type="color" id="picker-color-1" value="#99f6e4" onchange="generateArt()">
+                </div>
+                <div class="input-group">
+                    <label>Color 2</label>
+                    <input type="color" id="picker-color-2" value="#8b5cf6" onchange="generateArt()">
+                </div>
+            </div>
+            
+            <button class="btn" onclick="randomizePalette()">Randomize Palette (50 Schemes)</button>
+
+            <div class="settings-row grid-3">
+                <div class="input-group">
+                    <label>Width</label>
+                    <input type="number" id="dl-width" value="1080">
+                </div>
+                <div class="input-group">
+                    <label>Height</label>
+                    <input type="number" id="dl-height" value="2150">
+                </div>
+                <div class="input-group">
+                    <label>Unit</label>
+                    <select id="dl-unit">
+                        <option value="px">px</option>
+                        <option value="mm">mm</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-row grid-2">
+                <div class="input-group">
+                    <label>Target DPI</label>
+                    <select id="dl-dpi">
+                        <option value="72">72 DPI</option>
+                        <option value="300">300 DPI</option>
+                        <option value="600" selected>600 DPI</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-row grid-2">
+                <button class="btn" onclick="downloadSVG()">SVG ↓</button>
+                <button class="btn" onclick="downloadPNG()">PNG ↓</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function getRandomNum(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        // 50 Hand-curated color schemes
+        const palettes = [
+            ["#99f6e4", "#8b5cf6"], ["#facc15", "#e11d48"], ["#22d3ee", "#be185d"], ["#a3e635", "#4338ca"], ["#f472b6", "#1e40af"],
+            ["#34d399", "#111827"], ["#fbbf24", "#0f172a"], ["#60a5fa", "#312e81"], ["#f87171", "#171717"], ["#a78bfa", "#064e3b"],
+            ["#ffffff", "#000000"], ["#ff00ff", "#00ffff"], ["#00ff00", "#ff0000"], ["#ffff00", "#0000ff"], ["#ff8800", "#0088ff"],
+            ["#e879f9", "#047857"], ["#818cf8", "#9d174d"], ["#34d399", "#7c2d12"], ["#fde047", "#831843"], ["#93c5fd", "#14532d"],
+            ["#c084fc", "#1e3a8a"], ["#f9a8d4", "#0f766e"], ["#6ee7b7", "#4c1d95"], ["#fcd34d", "#701a75"], ["#99f6e4", "#86198f"],
+            ["#cbd5e1", "#0f172a"], ["#fda4af", "#022c22"], ["#86efac", "#312e81"], ["#d8b4fe", "#14532d"], ["#67e8f9", "#881337"],
+            ["#fca5a5", "#1e40af"], ["#a5b4fc", "#450a0a"], ["#fdba74", "#065f46"], ["#bef264", "#4c1d95"], ["#f9a8d4", "#111827"],
+            ["#5eead4", "#701a75"], ["#fcd34d", "#1e3a8a"], ["#c4b5fd", "#022c22"], ["#fca5a5", "#0f766e"], ["#7dd3fc", "#831843"],
+            ["#10b981", "#ffffff"], ["#3b82f6", "#f8fafc"], ["#ef4444", "#ffffff"], ["#8b5cf6", "#f1f5f9"], ["#f59e0b", "#1e293b"],
+            ["#14b8a6", "#0f172a"], ["#84cc16", "#ffffff"], ["#ec4899", "#ffffff"], ["#06b6d4", "#ffffff"], ["#f43f5e", "#111827"]
+        ];
+
+        function randomizePalette() {
+            const pal = palettes[Math.floor(Math.random() * palettes.length)];
+            document.getElementById('picker-color-1').value = pal[0];
+            document.getElementById('picker-color-2').value = pal[1];
+            generateArt();
+        }
+
+        function generateArt() {
+            const container = document.getElementById('art-container');
+            const color1 = document.getElementById('picker-color-1').value; 
+            const color2 = document.getElementById('picker-color-2').value; 
+
+            let svgStr = `<svg id="master-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">`;
+            let defsStr = `<defs>`;
+
+            // STRICTLY GEOMETRIC PATTERNS (NO HALFTONES)
+            defsStr += `
+                <pattern id="patStripesThick" width="32" height="32" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                    <rect x="0" y="0" width="16" height="32" fill="white" />
+                </pattern>
+                
+                <pattern id="patStripesThin" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+                    <rect x="0" y="0" width="3" height="12" fill="white" />
+                </pattern>
+                
+                <pattern id="patGridFine" width="24" height="24" patternUnits="userSpaceOnUse">
+                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="white" stroke-width="2" />
+                </pattern>
+
+                <pattern id="patHatch" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                    <path d="M 16 0 L 0 0 0 16" fill="none" stroke="white" stroke-width="1.5" />
+                    <path d="M 0 0 L 16 16" fill="none" stroke="white" stroke-width="1.5" />
+                </pattern>
+            `;
+
+            defsStr += `
+                <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="${color1}" />
+                    <stop offset="100%" stop-color="${color2}" />
+                </linearGradient>
+            `;
+
+            let bodyStr = `<rect x="0" y="0" width="100%" height="100%" fill="url(#bgGradient)" />`;
+
+            const bandCount = Math.floor(getRandomNum(15, 25));
+            const patterns = ['patStripesThick', 'patStripesThin', 'patGridFine', 'patHatch'];
+            const blendModes = ['normal', 'overlay', 'color-dodge', 'hard-light'];
+
+            // PROCEDURAL GENERATOR LOOP
+            for(let i = 0; i < bandCount; i++) {
+                const cx = getRandomNum(-200, 1200);
+                const cy = getRandomNum(-200, 1200);
+                const angles = [0, 45, 90, 135, 180, -45];
+                const angle = angles[Math.floor(Math.random() * angles.length)];
+                
+                // Massive spread widths so the gradients travel a long way
+                const spreadLeft = getRandomNum(400, 1500);
+                const spreadRight = getRandomNum(400, 1500);
+                
+                const colLeft = Math.random() > 0.5 ? color1 : color2;
+                const colRight = Math.random() > 0.5 ? color2 : color1;
+                
+                const typeLeft = Math.random() > 0.4 ? 'solid' : 'pattern';
+                const typeRight = Math.random() > 0.4 ? 'solid' : 'pattern';
+                
+                const patLeft = patterns[Math.floor(Math.random() * patterns.length)];
+                const patRight = patterns[Math.floor(Math.random() * patterns.length)];
+                const mode = blendModes[Math.floor(Math.random() * blendModes.length)];
+
+                // GUARANTEED OUTWARD BLEED MATH:
+                // Left Rectangle: Fades from 0% opacity on the far left, to 100% opacity at exactly X=0 (the sharp line)
+                defsStr += `
+                    <linearGradient id="gradLeft${i}" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="${colLeft}" stop-opacity="0" />
+                        <stop offset="50%" stop-color="${colLeft}" stop-opacity="0.1" />
+                        <stop offset="95%" stop-color="${colLeft}" stop-opacity="1" />
+                        <stop offset="100%" stop-color="${colLeft}" stop-opacity="1" />
+                    </linearGradient>
+                    
+                    <linearGradient id="maskLeft${i}" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="black" />
+                        <stop offset="50%" stop-color="#333333" />
+                        <stop offset="95%" stop-color="white" />
+                        <stop offset="100%" stop-color="white" />
+                    </linearGradient>
+                    
+                    <mask id="maskL${i}" maskUnits="userSpaceOnUse">
+                        <rect x="-${spreadLeft}" y="-3000" width="${spreadLeft}" height="6000" fill="url(#maskLeft${i})" />
+                    </mask>
+                `;
+
+                // Right Rectangle: Fades from 100% opacity at exactly X=0 (the sharp line), to 0% opacity on the far right
+                defsStr += `
+                    <linearGradient id="gradRight${i}" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="${colRight}" stop-opacity="1" />
+                        <stop offset="5%" stop-color="${colRight}" stop-opacity="1" />
+                        <stop offset="50%" stop-color="${colRight}" stop-opacity="0.1" />
+                        <stop offset="100%" stop-color="${colRight}" stop-opacity="0" />
+                    </linearGradient>
+                    
+                    <linearGradient id="maskRight${i}" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="white" />
+                        <stop offset="5%" stop-color="white" />
+                        <stop offset="50%" stop-color="#333333" />
+                        <stop offset="100%" stop-color="black" />
+                    </linearGradient>
+                    
+                    <mask id="maskR${i}" maskUnits="userSpaceOnUse">
+                        <rect x="0" y="-3000" width="${spreadRight}" height="6000" fill="url(#maskRight${i})" />
+                    </mask>
+                `;
+
+                bodyStr += `<g transform="translate(${cx}, ${cy}) rotate(${angle})" style="mix-blend-mode: ${mode};">`;
+                
+                // === LEFT SIDE (Bleeds outward to the left from X=0) ===
+                if (typeLeft === 'solid') {
+                    bodyStr += `<rect x="-${spreadLeft}" y="-3000" width="${spreadLeft}" height="6000" fill="url(#gradLeft${i})" />`;
+                } else {
+                    bodyStr += `<rect x="-${spreadLeft}" y="-3000" width="${spreadLeft}" height="6000" fill="url(#${patLeft})" mask="url(#maskL${i})" opacity="0.85"/>`;
+                }
+                
+                // === RIGHT SIDE (Bleeds outward to the right from X=0) ===
+                if (typeRight === 'solid') {
+                    bodyStr += `<rect x="0" y="-3000" width="${spreadRight}" height="6000" fill="url(#gradRight${i})" />`;
+                } else {
+                    bodyStr += `<rect x="0" y="-3000" width="${spreadRight}" height="6000" fill="url(#${patRight})" mask="url(#maskR${i})" opacity="0.85"/>`;
+                }
+                
+                // Explicitly draw the razor-sharp center line bridging the two outward bleeds
+                bodyStr += `<line x1="0" y1="-3000" x2="0" y2="3000" stroke="${colRight}" stroke-width="2" opacity="0.9" />`;
+
+                bodyStr += `</g>`;
+            }
+
+            defsStr += `</defs>`;
+            svgStr += defsStr + bodyStr + `</svg>`;
+            container.innerHTML = svgStr;
+        }
+
+        // Conversion logic: 1mm = 3.7795275591 pixels
+        function getDimensionsInPx() {
+            const width = parseFloat(document.getElementById('dl-width').value) || 1080;
+            const height = parseFloat(document.getElementById('dl-height').value) || 2150;
+            const unit = document.getElementById('dl-unit').value;
+            const dpi = parseInt(document.getElementById('dl-dpi').value) || 600;
+
+            if (unit === 'mm') {
+                const scale = dpi / 25.4;
+                return {
+                    w: Math.round(width * scale),
+                    h: Math.round(height * scale)
+                };
+            }
+            return { w: Math.round(width), h: Math.round(height) };
+        }
+
+        function randomizePaletteAndGenerate() {
+            randomizePalette();
+            generateArt();
+        }
+
+        function getExportSVGString(w, h) {
+            const originalSvg = document.getElementById('master-art');
+            if (!originalSvg) return null;
+
+            const clone = originalSvg.cloneNode(true);
+            clone.setAttribute('width', w + 'px');
+            clone.setAttribute('height', h + 'px');
+            return new XMLSerializer().serializeToString(clone);
+        }
+
+        function triggerDownload(uri, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = uri;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function downloadSVG() {
+            const dims = getDimensionsInPx();
+            const svgString = getExportSVGString(dims.w, dims.h);
+            if (!svgString) return;
+
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url, `outward_bleed_${dims.w}x${dims.h}.svg`);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        }
+
+        function downloadPNG() {
+            const dims = getDimensionsInPx();
+            const svgString = getExportSVGString(dims.w, dims.h);
+            if (!svgString) return;
+
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = dims.w;
+                canvas.height = dims.h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, dims.w, dims.h);
+                
+                const pngDataUrl = canvas.toDataURL('image/png');
+                triggerDownload(pngDataUrl, `outward_bleed_${dims.w}x${dims.h}.png`);
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
+
+        window.onload = () => {
+            randomizePaletteAndGenerate(); 
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Generative Studio | Scale Engine</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500&display=swap');
+
+        :root {
+            --bg-dark: #0a0a0a;
+            --ui-bg: rgba(18, 18, 18, 0.85);
+            --border: rgba(255, 255, 255, 0.15);
+            --text: #ededed;
+            --accent: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            font-family: 'Space Grotesk', sans-serif;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #display-area {
+            flex: 1;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            background-image: 
+                linear-gradient(45deg, #111 25%, transparent 25%), 
+                linear-gradient(-45deg, #111 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #111 75%), 
+                linear-gradient(-45deg, transparent 75%, #111 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            overflow: hidden;
+        }
+
+        #art-svg {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            display: block;
+            transition: background-color 0.3s ease;
+        }
+
+        #controls {
+            background: var(--ui-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+            padding: 1.5rem;
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+            padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+            z-index: 10;
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .input-group label {
+            padding: 0.8rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.5);
+            border-right: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+
+        .input-group label.no-border {
+            border-right: none;
+            border-left: 1px solid var(--border);
+            color: var(--accent);
+        }
+
+        input[type="number"], select {
+            background: transparent;
+            border: none;
+            color: var(--accent);
+            font-family: inherit;
+            font-size: 0.9rem;
+            padding: 0.8rem;
+            width: 100%;
+            outline: none;
+            -moz-appearance: textfield;
+        }
+
+        input[type="color"] {
+            background: transparent;
+            border: none;
+            height: 40px;
+            width: 100%;
+            cursor: pointer;
+            padding: 0 0.5rem;
+        }
+
+        input[type="checkbox"] {
+            accent-color: var(--text);
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        /* Custom Sleek Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            padding: 0 0.8rem;
+            cursor: pointer;
+        }
+        input[type="range"]:focus { outline: none; }
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px;
+            cursor: pointer;
+            background: var(--border);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        select {
+            cursor: pointer;
+            border-left: 1px solid var(--border);
+            flex-shrink: 0;
+            width: auto;
+            appearance: none;
+        }
+
+        select option {
+            background: var(--bg-dark);
+            color: var(--text);
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+        }
+
+        .btn-full { grid-column: span 2; }
+
+        button {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 1rem;
+            font-family: inherit;
+            font-weight: 500;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:active {
+            background: rgba(255, 255, 255, 0.05);
+            transform: scale(0.98);
+        }
+
+        button.highlight {
+            background: var(--text);
+            color: var(--bg-dark);
+            border-color: var(--text);
+        }
+
+        .palette-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.2);
+        }
+
+        /* Full Screen Overlay */
+        #fullscreen-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-dark);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        #fullscreen-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        #fs-display {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            background-image: 
+                linear-gradient(45deg, #111 25%, transparent 25%), 
+                linear-gradient(-45deg, #111 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #111 75%), 
+                linear-gradient(-45deg, transparent 75%, #111 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        #fs-art-svg {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .fs-controls {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 0.5rem;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            align-items: center;
+        }
+
+        .fs-controls button {
+            padding: 0.8rem 1.2rem;
+            font-size: 0.75rem;
+            border: none;
+            border-radius: 40px;
+        }
+        
+        .fs-controls button:hover { background: rgba(255,255,255,0.1); }
+        .fs-close { color: #FF003C; display: none; }
+        
+        .palette-name { font-size: 0.7rem; color: #888; text-transform: uppercase; margin-left: 5px;}
+    </style>
+</head>
+<body>
+
+    <div id="display-area">
+        <svg id="art-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div id="controls">
+        <!-- Scale Row -->
+        <div class="settings-row">
+            <div class="input-group">
+                <label>Scale</label>
+                <input type="range" id="val-scale" min="0.2" max="3" step="0.05" value="1" title="Adjust pattern density">
+            </div>
+        </div>
+
+        <!-- Dimensions -->
+        <div class="settings-row">
+            <div class="input-group">
+                <label>W</label>
+                <input type="number" id="val-width" value="1000">
+            </div>
+            <div class="input-group">
+                <label>H</label>
+                <input type="number" id="val-height" value="1000">
+            </div>
+            <select id="val-unit">
+                <option value="px">px</option>
+                <option value="mm">mm</option>
+            </select>
+        </div>
+
+        <!-- Background & Colors -->
+        <div class="settings-row">
+            <div class="input-group" style="flex: 0.8;">
+                <label>BG</label>
+                <input type="color" id="val-bg-color" value="#0a0a0a">
+                <label class="no-border" for="val-bg-trans">
+                    <input type="checkbox" id="val-bg-trans" checked> Trans
+                </label>
+            </div>
+            <button id="btn-palette" style="flex: 1.2;" title="Cycle colors without changing pattern">
+                <span id="palette-dot" class="palette-indicator"></span>
+                <span id="palette-label" class="palette-name">Bauhaus</span>
+            </button>
+        </div>
+
+        <!-- Actions -->
+        <div class="button-grid">
+            <button id="btn-generate" class="btn-full">Generate New Pattern</button>
+            <button id="btn-png">Download PNG</button>
+            <button id="btn-svg">Download SVG</button>
+            <button id="btn-fullscreen" class="btn-full highlight">Full Screen Preset (1080x2100)</button>
+        </div>
+    </div>
+
+    <!-- Full Screen Mode -->
+    <div id="fullscreen-overlay">
+        <div id="fs-display">
+            <svg id="fs-art-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+            <div class="fs-controls">
+                <button id="fs-btn-gen">Regenerate</button>
+                <input type="range" id="fs-val-scale" min="0.2" max="3" step="0.05" value="1" style="width: 80px; margin: 0 10px;">
+                <button id="fs-btn-svg">SVG</button>
+                <button id="fs-btn-png">PNG</button>
+                <button id="fs-btn-close" class="fs-close">Exit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const palettes = [
+            { name: "Bauhaus", colors: ["#D93829", "#F2A71B", "#265B8C", "#F2F2F2", "#0D0D0D"] },
+            { name: "Cyberpunk", colors: ["#FF003C", "#00E5FF", "#F4F4F5", "#2A00FF", "#FFEA00"] },
+            { name: "Mono Noir", colors: ["#ffffff", "#cccccc", "#999999", "#555555", "#222222"] },
+            { name: "Matcha", colors: ["#2B4021", "#7A8C5C", "#D1D9A7", "#F2F2F2", "#E88D6F"] },
+            { name: "Outrun", colors: ["#ff0099", "#4900ff", "#00fff9", "#ffffff", "#212121"] },
+            { name: "Vaporwave", colors: ["#ff71ce", "#01cdfe", "#05ffa1", "#b967ff", "#fffb96"] },
+            { name: "Retro 70s", colors: ["#D97925", "#F2C84B", "#8C4A32", "#A6A69C", "#403226"] },
+            { name: "Neon Nights", colors: ["#39ff14", "#ff00ff", "#00ffff", "#ffff00", "#111111"] },
+            { name: "Pastel Dream", colors: ["#FFB3BA", "#FFDFBA", "#FFFFBA", "#BAFFC9", "#BAE1FF"] },
+            { name: "Ocean Deep", colors: ["#03045e", "#0077b6", "#00b4d8", "#90e0ef", "#caf0f8"] },
+            { name: "Desert Sand", colors: ["#e07a5f", "#3d405b", "#81b29a", "#f2cc8f", "#f4f1de"] },
+            { name: "Pop Art", colors: ["#FF0000", "#FFFF00", "#0000FF", "#FFFFFF", "#000000"] },
+            { name: "Toxic", colors: ["#ccff00", "#333333", "#000000", "#ff0033", "#ffffff"] },
+            { name: "Royal", colors: ["#1d2d50", "#133b5c", "#1e5f74", "#fcdab7", "#ffffff"] },
+            { name: "Miami", colors: ["#f78da7", "#8bd3c7", "#fdf498", "#fdcce5", "#eeeeee"] },
+            { name: "Ethereal", colors: ["#f8f9fa", "#e9ecef", "#dee2e6", "#ced4da", "#adb5bd"] },
+            { name: "Crimson", colors: ["#641220", "#85182a", "#a71e34", "#bd1f36", "#da1e37"] },
+            { name: "Nordic", colors: ["#4c566a", "#81a1c1", "#88c0d0", "#eceff4", "#bf616a"] },
+            { name: "Sunset", colors: ["#ff7b54", "#ffb26b", "#ffd56b", "#939b62", "#2d2d2d"] },
+            { name: "Brutalism", colors: ["#ff4500", "#000000", "#ffffff", "#cccccc", "#1a1a1a"] }
+        ];
+
+        // Seeded RNG System
+        let currentSeed = Math.floor(Math.random() * 4294967296) >>> 0;
+        let rng;
+
+        function mulberry32(a) {
+            return function() {
+              var t = a += 0x6D2B79F5;
+              t = Math.imul(t ^ t >>> 15, t | 1);
+              t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+              return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+        }
+
+        // Global state
+        let currentPaletteIndex = Math.floor(Math.random() * palettes.length);
+        const svgNS = "http://www.w3.org/2000/svg";
+        const MM_TO_PX = 3.7795275591; 
+
+        // DOM Elements
+        const mainSvg = document.getElementById('art-svg');
+        const fsSvg = document.getElementById('fs-art-svg');
+        const paletteDot = document.getElementById('palette-dot');
+        const paletteLabel = document.getElementById('palette-label');
+        const fsOverlay = document.getElementById('fullscreen-overlay');
+
+        const inptW = document.getElementById('val-width');
+        const inptH = document.getElementById('val-height');
+        const inptU = document.getElementById('val-unit');
+        const inptScale = document.getElementById('val-scale');
+        const inptFsScale = document.getElementById('fs-val-scale');
+        const inptBgColor = document.getElementById('val-bg-color');
+        const inptBgTrans = document.getElementById('val-bg-trans');
+
+        // Helpers
+        function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1) + min); }
+        const rngInt = (min, max) => Math.floor(rng() * (max - min + 1) + min);
+        const rngChoice = (arr) => arr[Math.floor(rng() * arr.length)];
+        const rngColor = () => rngChoice(palettes[currentPaletteIndex].colors);
+
+        function updatePaletteUI() {
+            paletteDot.style.backgroundColor = palettes[currentPaletteIndex].colors[0];
+            paletteLabel.textContent = palettes[currentPaletteIndex].name;
+        }
+
+        function changePaletteRandomly() {
+            let newIndex;
+            do { newIndex = randomInt(0, palettes.length - 1); } 
+            while (newIndex === currentPaletteIndex && palettes.length > 1);
+            currentPaletteIndex = newIndex;
+            updatePaletteUI();
+        }
+
+        function generateNewSeed() {
+            currentSeed = Math.floor(Math.random() * 4294967296) >>> 0;
+        }
+
+        // Core Generation Engine - Now completely deterministic based on cell coordinates
+        function buildSVGContent(targetSvg, targetWidthPx, targetHeightPx) {
+            targetSvg.innerHTML = ''; 
+            targetSvg.setAttribute('viewBox', `0 0 ${targetWidthPx} ${targetHeightPx}`);
+            targetSvg.setAttribute('width', targetWidthPx);
+            targetSvg.setAttribute('height', targetHeightPx);
+
+            // Handle Background
+            if (!inptBgTrans.checked) {
+                const bgRect = document.createElementNS(svgNS, 'rect');
+                bgRect.setAttribute('width', targetWidthPx);
+                bgRect.setAttribute('height', targetHeightPx);
+                bgRect.setAttribute('fill', inptBgColor.value);
+                targetSvg.appendChild(bgRect);
+            }
+
+            // Global pattern properties based purely on the main seed
+            rng = mulberry32(currentSeed);
+            const baseDivisions = rngChoice([6, 8, 10, 12, 16]);
+            
+            const scaleVal = parseFloat(inptScale.value);
+            const minDim = Math.min(targetWidthPx, targetHeightPx);
+            
+            // Adjust cell size based on the user's scale modifier
+            const cellSize = (minDim / baseDivisions) * scaleVal;
+
+            const cols = Math.ceil(targetWidthPx / cellSize);
+            const rows = Math.ceil(targetHeightPx / cellSize);
+
+            for(let x = 0; x < cols; x++) {
+                for(let y = 0; y < rows; y++) {
+                    
+                    // Create a unique, repeatable seed for this specific coordinate
+                    // This ensures zooming out preserves the exact same shapes in the exact same positions
+                    const cellSeed = (currentSeed + x * 1640531527 + y * -972730066) >>> 0;
+                    rng = mulberry32(cellSeed);
+
+                    const group = document.createElementNS(svgNS, 'g');
+                    group.setAttribute('transform', `translate(${x * cellSize}, ${y * cellSize})`);
+
+                    const rotation = rngChoice([0, 90, 180, 270]);
+                    const center = cellSize / 2;
+                    const shapeWrapper = document.createElementNS(svgNS, 'g');
+                    shapeWrapper.setAttribute('transform', `rotate(${rotation}, ${center}, ${center})`);
+
+                    const shapeType = rngInt(1, 6);
+                    const color = rngColor();
+                    const secondaryColor = rngColor();
+
+                    if (shapeType === 1) { 
+                        const path = document.createElementNS(svgNS, 'path');
+                        path.setAttribute('d', `M 0 ${center} A ${center} ${center} 0 0 1 ${cellSize} ${center} Z`);
+                        path.setAttribute('fill', color);
+                        shapeWrapper.appendChild(path);
+                    } else if (shapeType === 2) { 
+                        const path = document.createElementNS(svgNS, 'path');
+                        path.setAttribute('d', `M 0 0 L ${cellSize} 0 A ${cellSize} ${cellSize} 0 0 1 0 ${cellSize} Z`);
+                        path.setAttribute('fill', color);
+                        shapeWrapper.appendChild(path);
+                    } else if (shapeType === 3) { 
+                        const poly = document.createElementNS(svgNS, 'polygon');
+                        poly.setAttribute('points', `0,0 ${cellSize},0 0,${cellSize}`);
+                        poly.setAttribute('fill', color);
+                        shapeWrapper.appendChild(poly);
+                    } else if (shapeType === 4) { 
+                        const rect1 = document.createElementNS(svgNS, 'rect');
+                        rect1.setAttribute('width', cellSize);
+                        rect1.setAttribute('height', cellSize);
+                        rect1.setAttribute('fill', color);
+                        const rect2 = document.createElementNS(svgNS, 'rect');
+                        rect2.setAttribute('x', cellSize * 0.25);
+                        rect2.setAttribute('y', cellSize * 0.25);
+                        rect2.setAttribute('width', cellSize * 0.5);
+                        rect2.setAttribute('height', cellSize * 0.5);
+                        rect2.setAttribute('fill', secondaryColor);
+                        if (rng() > 0.5) rect2.setAttribute('rx', cellSize * 0.5);
+                        shapeWrapper.appendChild(rect1);
+                        shapeWrapper.appendChild(rect2);
+                    } else if (shapeType === 5) { 
+                        for(let i=0; i<4; i++) {
+                            const rect = document.createElementNS(svgNS, 'rect');
+                            rect.setAttribute('x', 0);
+                            rect.setAttribute('y', i * (cellSize/4));
+                            rect.setAttribute('width', cellSize);
+                            rect.setAttribute('height', cellSize/8);
+                            rect.setAttribute('fill', color);
+                            shapeWrapper.appendChild(rect);
+                        }
+                    } else { 
+                        if (rng() > 0.4) {
+                            const circle = document.createElementNS(svgNS, 'circle');
+                            circle.setAttribute('cx', center);
+                            circle.setAttribute('cy', center);
+                            circle.setAttribute('r', cellSize * 0.25);
+                            circle.setAttribute('fill', color);
+                            shapeWrapper.appendChild(circle);
+                        }
+                    }
+
+                    group.appendChild(shapeWrapper);
+                    targetSvg.appendChild(group);
+                }
+            }
+        }
+
+        // Controllers
+        function generateMainPattern() {
+            let w = parseFloat(inptW.value) || 1000;
+            let h = parseFloat(inptH.value) || 1000;
+            let u = inptU.value;
+
+            let pxW = u === 'mm' ? w * MM_TO_PX : w;
+            let pxH = u === 'mm' ? h * MM_TO_PX : h;
+
+            buildSVGContent(mainSvg, pxW, pxH);
+        }
+
+        function generateFSPattern() {
+            buildSVGContent(fsSvg, 1080, 2100);
+        }
+
+        // Exporters
+        function getSvgString(svgNode) {
+            const serializer = new XMLSerializer();
+            let source = serializer.serializeToString(svgNode);
+            if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+                source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+            return source;
+        }
+
+        function exportSVG(svgNode, filename) {
+            const blob = new Blob([getSvgString(svgNode)], {type: "image/svg+xml;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url, filename);
+        }
+
+        function exportPNG(svgNode, widthPx, heightPx, filename) {
+            const svgString = getSvgString(svgNode);
+            const blob = new Blob([svgString], {type: "image/svg+xml;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = widthPx;
+                canvas.height = heightPx;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, widthPx, heightPx);
+                
+                const pngUrl = canvas.toDataURL('image/png');
+                triggerDownload(pngUrl, filename);
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
+
+        function triggerDownload(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function getActiveMainDimensions() {
+            let w = parseFloat(inptW.value) || 1000;
+            let h = parseFloat(inptH.value) || 1000;
+            let u = inptU.value;
+            return {
+                w: u === 'mm' ? w * MM_TO_PX : w,
+                h: u === 'mm' ? h * MM_TO_PX : h
+            };
+        }
+
+        // Core Listeners
+        document.getElementById('btn-generate').addEventListener('click', () => {
+            generateNewSeed();
+            changePaletteRandomly();
+            generateMainPattern();
+        });
+        
+        document.getElementById('btn-palette').addEventListener('click', () => {
+            currentPaletteIndex = (currentPaletteIndex + 1) % palettes.length;
+            updatePaletteUI();
+            generateMainPattern();
+            if (fsOverlay.classList.contains('active')) generateFSPattern();
+        });
+
+        // Export Listeners
+        document.getElementById('btn-svg').addEventListener('click', () => exportSVG(mainSvg, `custom-${Date.now()}.svg`));
+        document.getElementById('btn-png').addEventListener('click', () => {
+            const dims = getActiveMainDimensions();
+            exportPNG(mainSvg, dims.w, dims.h, `custom-${Date.now()}.png`);
+        });
+
+        // Full Screen Listeners
+        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+            fsOverlay.classList.add('active');
+            generateNewSeed();
+            changePaletteRandomly(); 
+            generateFSPattern();
+            generateMainPattern(); 
+        });
+
+        document.getElementById('fs-btn-gen').addEventListener('click', () => {
+            generateNewSeed();
+            changePaletteRandomly();
+            generateFSPattern();
+            generateMainPattern(); 
+        });
+
+        document.getElementById('fs-btn-close').addEventListener('click', () => fsOverlay.classList.remove('active'));
+        document.getElementById('fs-btn-svg').addEventListener('click', () => exportSVG(fsSvg, `preset-1080x2100-${Date.now()}.svg`));
+        document.getElementById('fs-btn-png').addEventListener('click', () => exportPNG(fsSvg, 1080, 2100, `preset-1080x2100-${Date.now()}.png`));
+
+        // Real-time Scale Sync
+        inptScale.addEventListener('input', (e) => {
+            inptFsScale.value = e.target.value;
+            generateMainPattern();
+            if (fsOverlay.classList.contains('active')) generateFSPattern();
+        });
+
+        inptFsScale.addEventListener('input', (e) => {
+            inptScale.value = e.target.value;
+            generateFSPattern();
+            generateMainPattern();
+        });
+
+        // Auto-update pattern on other parameter changes
+        [inptW, inptH, inptU, inptBgColor, inptBgTrans].forEach(el => {
+            el.addEventListener('change', () => {
+                generateMainPattern();
+                if (fsOverlay.classList.contains('active')) generateFSPattern();
+            });
+        });
+
+        // Initialization
+        updatePaletteUI();
+        generateNewSeed();
+        changePaletteRandomly();
+        generateFSPattern();
+        fsOverlay.classList.add('active');
+    </script>
+</body>
+</html>

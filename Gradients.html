@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Crystal Flow Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --surface: #0a0a0a;
+            --text: #eaeaea;
+            --text-dim: #777777;
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #06b6d4; 
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Jost', sans-serif;
+            font-weight: 200;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 24px;
+            text-align: center;
+            border-bottom: 0.5px solid var(--border);
+            display: none;
+        }
+
+        h1 {
+            font-size: 13px;
+            font-weight: 300;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            gap: 24px;
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            background-color: var(--surface);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        .controls {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #art-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #art-container svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Floating Toolbar */
+        .floating-toolbar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(5, 5, 5, 0.9);
+            border: 0.5px solid var(--border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 12px 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 10000;
+            align-items: center;
+        }
+
+        .floating-toolbar button {
+            background: transparent;
+            color: var(--text);
+            border: 0.5px solid var(--border);
+            padding: 12px 20px;
+            font-family: 'Jost', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .floating-toolbar button:active {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .floating-toolbar button.btn-generate {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .floating-toolbar button.btn-generate:active {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--text);
+            border: 0.5px solid var(--border);
+            padding: 16px;
+            font-family: 'Jost', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:active {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .btn-generate {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.05) inset;
+        }
+        
+        .btn-generate:active {
+            background: var(--accent);
+            color: var(--bg);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+        }
+
+        .settings-row {
+            display: grid;
+            gap: 12px;
+        }
+
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-3 { grid-template-columns: 1fr 1fr 80px; }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-group label {
+            position: absolute;
+            top: -8px;
+            left: 8px;
+            background: var(--bg);
+            padding: 0 4px;
+            font-size: 9px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+
+        input, select {
+            width: 100%;
+            background: transparent;
+            color: var(--text);
+            border: 0.5px solid var(--border);
+            padding: 14px 12px;
+            font-family: 'Jost', sans-serif;
+            font-size: 14px;
+            font-weight: 300;
+            outline: none;
+            appearance: none;
+            border-radius: 0;
+            position: relative;
+        }
+
+        select { cursor: pointer; }
+        #dl-unit { text-align: center; }
+
+        input:focus, select:focus {
+            border-color: var(--accent);
+        }
+
+        input[type="color"] {
+            padding: 0;
+            height: 49px;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 4px;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Crystal Flow Studio</h1>
+    </header>
+
+    <main>
+        <div class="canvas-wrapper">
+            <div id="art-container"></div>
+            <div class="floating-toolbar">
+                <button class="btn btn-generate" onclick="randomizeColorsAndGenerate()">Generate</button>
+                <button class="btn" onclick="downloadSVG()">SVG ↓</button>
+                <button class="btn" onclick="downloadPNG()">PNG ↓</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-generate" onclick="generateArt()">Generate Crystal Flow</button>
+
+            <div class="settings-row grid-2">
+                <div class="input-group">
+                    <label>Color 1</label>
+                    <input type="color" id="picker-color-1" value="#0ea5e9" onchange="generateArt()">
+                </div>
+                <div class="input-group">
+                    <label>Color 2</label>
+                    <input type="color" id="picker-color-2" value="#ec4899" onchange="generateArt()">
+                </div>
+            </div>
+
+            <div class="settings-row grid-2">
+                <div class="input-group">
+                    <label>Color 3</label>
+                    <input type="color" id="picker-color-3" value="#8b5cf6" onchange="generateArt()">
+                </div>
+                <div class="input-group">
+                    <label>Color 4</label>
+                    <input type="color" id="picker-color-4" value="#14b8a6" onchange="generateArt()">
+                </div>
+            </div>
+
+            <div class="settings-row grid-3">
+                <div class="input-group">
+                    <label>Width (px)</label>
+                    <input type="number" id="dl-width" value="1080" min="100">
+                </div>
+                <div class="input-group">
+                    <label>Height (px)</label>
+                    <input type="number" id="dl-height" value="2150" min="100">
+                </div>
+                <div class="input-group">
+                    <label>Unit</label>
+                    <select id="dl-unit">
+                        <option value="px">px</option>
+                        <option value="mm">mm</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="input-group">
+                    <label>DPI</label>
+                    <input type="number" id="dl-dpi" value="600" min="72" max="1200">
+                </div>
+            </div>
+
+            <div class="settings-row grid-2">
+                <button class="btn" onclick="downloadSVG()">Download SVG</button>
+                <button class="btn" onclick="downloadPNG()">Download PNG</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function getRandomNum(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function generateArt() {
+            const container = document.getElementById('art-container');
+            const color1 = document.getElementById('picker-color-1').value; 
+            const color2 = document.getElementById('picker-color-2').value;
+            const color3 = document.getElementById('picker-color-3').value;
+            const color4 = document.getElementById('picker-color-4').value;
+
+            let svgStr = `<svg id="master-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">`;
+            let defsStr = `<defs>`;
+            defsStr += `<filter id="blur1" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur in="SourceGraphic" stdDeviation="80" /></filter>`;
+            defsStr += `<filter id="blur2" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur in="SourceGraphic" stdDeviation="120" /></filter>`;
+            defsStr += `<filter id="blur3" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur in="SourceGraphic" stdDeviation="60" /></filter>`;
+            
+            let bodyStr = ``;
+
+            const colors = [color1, color2, color3, color4];
+            
+            // === CREATE SMOOTH BLURRED COLOR BLOBS ===
+            const blobCount = Math.floor(getRandomNum(8, 14));
+            
+            for (let b = 0; b < blobCount; b++) {
+                const x = getRandomNum(-200, 1200);
+                const y = getRandomNum(-200, 1200);
+                const w = getRandomNum(300, 800);
+                const h = getRandomNum(300, 800);
+                const rotation = getRandomNum(0, 360);
+                const pickedColor = colors[Math.floor(Math.random() * colors.length)];
+                const filterChoice = ['blur1', 'blur2', 'blur3'][Math.floor(Math.random() * 3)];
+                const blendMode = ['multiply', 'screen', 'overlay', 'lighten', 'darken', 'color-dodge'][Math.floor(Math.random() * 6)];
+                const opacity = getRandomNum(0.4, 0.85);
+                
+                // Create organic blob path with smooth bezier curves
+                const numPoints = Math.floor(getRandomNum(6, 12));
+                let pathStr = 'M ';
+                const points = [];
+                
+                for (let i = 0; i < numPoints; i++) {
+                    const angle = (i / numPoints) * Math.PI * 2;
+                    const radiusVariance = getRandomNum(0.6, 1.4);
+                    const px = Math.cos(angle) * (w / 2) * radiusVariance;
+                    const py = Math.sin(angle) * (h / 2) * radiusVariance;
+                    points.push({ x: px, y: py });
+                }
+                
+                // Build smooth bezier curve path
+                for (let i = 0; i < points.length; i++) {
+                    const current = points[i];
+                    const next = points[(i + 1) % points.length];
+                    const nextNext = points[(i + 2) % points.length];
+                    
+                    // Control points for smooth curve
+                    const cpx1 = current.x + (next.x - points[(i - 1 + points.length) % points.length].x) * 0.25;
+                    const cpy1 = current.y + (next.y - points[(i - 1 + points.length) % points.length].y) * 0.25;
+                    const cpx2 = next.x - (nextNext.x - current.x) * 0.25;
+                    const cpy2 = next.y - (nextNext.y - current.y) * 0.25;
+                    
+                    if (i === 0) {
+                        pathStr += `${current.x} ${current.y} `;
+                    }
+                    pathStr += `C ${cpx1} ${cpy1}, ${cpx2} ${cpy2}, ${next.x} ${next.y} `;
+                }
+                pathStr += 'Z';
+                
+                bodyStr += `<g transform="translate(${x}, ${y}) rotate(${rotation})">`;
+                bodyStr += `<path d="${pathStr}" fill="${pickedColor}" opacity="${opacity}" filter="url(#${filterChoice})" style="mix-blend-mode: ${blendMode};" />`;
+                bodyStr += `</g>`;
+            }
+
+            // === ADD SUBTLE RADIAL GRADIENTS FOR DEPTH ===
+            const gradientCount = Math.floor(getRandomNum(4, 8));
+            for (let g = 0; g < gradientCount; g++) {
+                const gx = getRandomNum(100, 900);
+                const gy = getRandomNum(100, 900);
+                const radius = getRandomNum(200, 600);
+                const col1 = colors[Math.floor(Math.random() * colors.length)];
+                const col2 = colors[Math.floor(Math.random() * colors.length)];
+                const gradId = `radialGrad${g}`;
+                
+                defsStr += `<radialGradient id="${gradId}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${col1}" stop-opacity="0.5"/><stop offset="100%" stop-color="${col2}" stop-opacity="0"/></radialGradient>`;
+                
+                const blendMode = ['multiply', 'screen', 'overlay', 'lighten'][Math.floor(Math.random() * 4)];
+                bodyStr += `<circle cx="${gx}" cy="${gy}" r="${radius}" fill="url(#${gradId})" style="mix-blend-mode: ${blendMode};" filter="url(#blur2)" opacity="${getRandomNum(0.3, 0.6)}" />`;
+            }
+
+            defsStr += `</defs>`;
+            let svgStr_final = svgStr + defsStr + bodyStr + `</svg>`;
+            container.innerHTML = svgStr_final;
+        }
+
+        // Conversion logic: 1mm = 3.7795275591 pixels
+        function getDimensionsInPx() {
+            const width = parseFloat(document.getElementById('dl-width').value) || 1080;
+            const height = parseFloat(document.getElementById('dl-height').value) || 2150;
+            const unit = document.getElementById('dl-unit').value;
+            const dpi = parseInt(document.getElementById('dl-dpi').value) || 600;
+
+            if (unit === 'mm') {
+                const scale = dpi / 25.4;
+                return {
+                    w: Math.round(width * scale),
+                    h: Math.round(height * scale)
+                };
+            }
+            return { w: Math.round(width), h: Math.round(height) };
+        }
+
+        function getRandomColor() {
+            const colors = ['#0ea5e9', '#ec4899', '#8b5cf6', '#14b8a6', '#f59e0b', '#10b981', '#6366f1', '#f43f5e', '#06b6d4', '#84cc16', '#d946ef', '#ea580c'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function randomizeColorsAndGenerate() {
+            document.getElementById('picker-color-1').value = getRandomColor();
+            document.getElementById('picker-color-2').value = getRandomColor();
+            document.getElementById('picker-color-3').value = getRandomColor();
+            document.getElementById('picker-color-4').value = getRandomColor();
+            generateArt();
+        }
+
+        function getExportSVGString(w, h) {
+            const originalSvg = document.getElementById('master-art');
+            if (!originalSvg) return null;
+
+            const clone = originalSvg.cloneNode(true);
+            clone.setAttribute('width', w + 'px');
+            clone.setAttribute('height', h + 'px');
+            return new XMLSerializer().serializeToString(clone);
+        }
+
+        function triggerDownload(uri, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = uri;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function downloadSVG() {
+            const dims = getDimensionsInPx();
+            const svgString = getExportSVGString(dims.w, dims.h);
+            if (!svgString) return;
+
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url, `crystal_flow_${dims.w}x${dims.h}.svg`);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        }
+
+        function downloadPNG() {
+            const dims = getDimensionsInPx();
+            const svgString = getExportSVGString(dims.w, dims.h);
+            if (!svgString) return;
+
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = dims.w;
+                canvas.height = dims.h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, dims.w, dims.h);
+                
+                const pngDataUrl = canvas.toDataURL('image/png');
+                triggerDownload(pngDataUrl, `crystal_flow_${dims.w}x${dims.h}.png`);
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
+
+        window.onload = () => {
+            randomizeColorsAndGenerate(); 
+        };
+    </script>
+</body>
+</html>

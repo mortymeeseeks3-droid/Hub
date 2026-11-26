@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>P O L Y G O N // V E C T O R</title>
+    <!-- Delaunator for Triangulation -->
+    <script src="https://unpkg.com/delaunator@5.0.0/delaunator.min.js"></script>
+    <style>
+        /* Mobile-Locked Dark Mode UI */
+        :root {
+            --bg: #050505;
+            --text: #e0e0e0;
+            --neon: #00ffcc;
+            --border-dim: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100dvh; 
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            flex: 0 0 auto;
+            text-align: center;
+            padding: 15px 0 5px 0;
+        }
+
+        h1 {
+            font-weight: 100;
+            letter-spacing: 14px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            margin: 0 0 5px 14px; 
+            color: #fff;
+        }
+
+        .subtitle {
+            font-weight: 200;
+            letter-spacing: 6px;
+            font-size: 0.5rem;
+            color: var(--neon);
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin: 0;
+        }
+
+        /* Workspace Canvas */
+        .workspace {
+            flex: 1 1 auto;
+            min-height: 0; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            position: relative;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; 
+            box-shadow: 0 0 40px rgba(0, 255, 204, 0.05);
+            opacity: 0;
+            transition: opacity 0.8s ease;
+            border: 1px solid var(--border-dim);
+        }
+
+        canvas.ready {
+            opacity: 1;
+        }
+
+        #status {
+            position: absolute;
+            font-weight: 100;
+            font-size: 0.6rem;
+            letter-spacing: 8px;
+            color: var(--neon);
+            text-transform: uppercase;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+
+        /* --- Full Screen Overrides --- */
+        .workspace.fullscreen-active {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100dvh;
+            z-index: 99999;
+            background: #000;
+            padding: 0;
+        }
+
+        .workspace.fullscreen-active canvas {
+            border: none;
+            max-width: 100vw;
+            max-height: 100dvh;
+        }
+
+        .fs-toolbar {
+            display: none;
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(5, 5, 5, 0.85);
+            border: 1px solid var(--border-dim);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 40px;
+            padding: 8px 15px;
+            gap: 15px;
+            z-index: 100000;
+            width: max-content;
+        }
+
+        .workspace.fullscreen-active .fs-toolbar {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+        }
+
+        .fs-btn {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.55rem;
+            font-weight: 200;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            padding: 8px;
+            transition: color 0.3s;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .fs-btn:active, .fs-btn:hover {
+            color: var(--neon);
+        }
+
+        .fs-btn.generate {
+            color: var(--neon);
+            font-weight: bold;
+        }
+
+        /* Control Deck */
+        .controls {
+            flex: 0 0 auto;
+            padding: 10px 15px 15px 15px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            background: #000;
+            border-top: 1px solid var(--border-dim);
+        }
+
+        .controls.visible {
+            display: flex;
+        }
+
+        .workspace.fullscreen-active ~ .controls {
+            display: none;
+        }
+
+        .control-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px 12px;
+            align-items: center;
+            border: 1px solid var(--border-dim);
+            padding: 8px;
+        }
+
+        .custom-colors {
+            display: none; 
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 5px;
+        }
+
+        .custom-colors.active {
+            display: grid;
+        }
+
+        select {
+            appearance: none;
+            background: transparent;
+            border: 1px solid var(--border-dim);
+            color: var(--text);
+            padding: 10px 8px;
+            font-size: 0.6rem;
+            font-weight: 200;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            outline: none;
+            border-radius: 0;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        select option {
+            background: #000;
+            color: #fff;
+        }
+
+        /* UI Elements for Settings */
+        .setting-label {
+            font-size: 0.6rem;
+            font-weight: 200;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.6);
+            white-space: nowrap;
+        }
+
+        .setting-value {
+            color: var(--neon);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: var(--neon);
+            margin-top: -6px;
+            cursor: pointer;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 1px;
+            background: var(--border-dim);
+            cursor: pointer;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            height: 24px;
+            padding: 0;
+            background: transparent;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: 1px solid var(--border-dim);
+        }
+
+        /* Precision Export Inputs */
+        .export-input {
+            background: transparent;
+            border: 1px solid var(--border-dim);
+            color: var(--neon);
+            padding: 4px;
+            font-size: 0.6rem;
+            font-family: inherit;
+            text-align: center;
+            width: 100%;
+            outline: none;
+            -moz-appearance: textfield;
+            transition: border-color 0.3s;
+        }
+
+        .export-input::-webkit-outer-spin-button,
+        .export-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .export-input:focus {
+            border-color: var(--neon);
+        }
+
+        .ratio-toggle {
+            color: var(--border-dim);
+            align-self: center;
+            font-size: 0.7rem;
+            cursor: pointer;
+            user-select: none;
+            padding: 0 4px;
+            transition: color 0.3s;
+        }
+        
+        .ratio-toggle.locked {
+            color: var(--neon);
+        }
+
+        /* Safe Native Buttons */
+        .btn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid var(--border-dim);
+            background: transparent;
+            color: var(--text);
+            padding: 10px 8px;
+            font-size: 0.6rem;
+            font-weight: 100;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-family: inherit;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .btn:active, .btn:hover {
+            border-color: var(--neon);
+            color: var(--bg);
+            background: var(--neon);
+        }
+
+        .btn.primary {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn.random {
+            color: var(--neon);
+            border-color: var(--neon);
+            font-weight: bold;
+        }
+
+        .btn.random:active, .btn.random:hover {
+            color: var(--bg); 
+        }
+
+        .btn.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+            border-color: var(--border-dim);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Polygon</h1>
+        <div class="subtitle">Delaunay Gradient Engine</div>
+    </div>
+
+    <div class="workspace fullscreen-active" id="workspace">
+        <div id="status">Synthesizing...</div>
+        <canvas id="renderCanvas"></canvas>
+        
+        <!-- Full Screen Floating Toolbar -->
+        <div class="fs-toolbar">
+            <button type="button" class="fs-btn generate" id="fsGenerate">Generate</button>
+            <button type="button" class="fs-btn" id="fsPng">PNG</button>
+            <button type="button" class="fs-btn" id="fsSvg">SVG</button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-row">
+            <button type="button" class="btn primary" onclick="document.getElementById('imageUpload').click()">Load Image</button>
+            <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+            <button type="button" id="btnRandom" class="btn random">Random Pattern</button>
+        </div>
+
+        <select id="colorTheme">
+            <option value="original">Original Colors</option>
+            <option value="cyberpunk">Neon Cyberpunk</option>
+            <option value="synthwave">Synthwave Outrun</option>
+            <option value="thermal">Thermal Heat</option>
+            <option value="ice">Monochrome Ice</option>
+            <option value="sunset">Retro Sunset</option>
+            <option value="gold">Molten Gold</option>
+            <option value="aurora">Borealis Aurora</option>
+            <option value="neon_tokyo">Neon Tokyo</option>
+            <option value="prismatic">Prismatic</option>
+            <option value="hologram">Hologram</option>
+            <option value="custom">-- Custom --</option>
+        </select>
+
+        <div class="custom-colors" id="customColorBox">
+            <input type="color" id="cShadows" value="#05051a" title="Shadows">
+            <input type="color" id="cMidtones" value="#8b22a1" title="Midtones">
+            <input type="color" id="cHighlights" value="#00ffcc" title="Highlights">
+        </div>
+
+        <div class="settings-grid">
+            <div class="setting-label">Scale: <span id="scaleDisplay" class="setting-value">25</span></div>
+            <input type="range" id="detailScale" min="10" max="100" step="1" value="25">
+
+            <div class="setting-label">Stroke: <span id="strokeDisplay" class="setting-value">1.0</span></div>
+            <div style="display: flex; gap: 10px; align-items: center; width: 100%;">
+                <input type="range" id="strokeWidth" min="0" max="10" step="0.5" value="1" style="flex: 1;">
+                <input type="color" id="strokeColor" value="#000000" style="width: 40px;" title="Stroke Color">
+            </div>
+
+            <div class="setting-label">Size:</div>
+            <div style="display: flex; gap: 4px; width: 100%;">
+                <input type="number" id="expW" class="export-input" value="1080" title="Width">
+                <div id="ratioToggle" class="ratio-toggle" title="Toggle Aspect Ratio Lock">&times;</div>
+                <input type="number" id="expH" class="export-input" value="2150" title="Height">
+                <select id="expU" style="width: 65px; padding: 0; font-size: 0.55rem; text-align-last: center;">
+                    <option value="px">PX</option>
+                    <option value="mm">MM</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="control-row" style="grid-template-columns: 1fr 1fr 1fr;">
+            <button type="button" id="btnFullscreen" class="btn">FULL SCREEN</button>
+            <button type="button" id="btnPng" class="btn disabled" onclick="downloadPNG()">PNG</button>
+            <button type="button" id="btnSvg" class="btn disabled" onclick="downloadSVG()">SVG</button>
+        </div>
+    </div>
+
+    <script>
+        const workspace = document.getElementById('workspace');
+        const canvas = document.getElementById('renderCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        
+        const uploadInput = document.getElementById('imageUpload');
+        const btnRandom = document.getElementById('btnRandom');
+        const btnFullscreen = document.getElementById('btnFullscreen');
+        const themeSelect = document.getElementById('colorTheme');
+        
+        const strokeInput = document.getElementById('strokeWidth');
+        const strokeDisplay = document.getElementById('strokeDisplay');
+        const strokeColorInput = document.getElementById('strokeColor');
+        
+        const scaleInput = document.getElementById('detailScale');
+        const scaleDisplay = document.getElementById('scaleDisplay');
+        
+        const customColorBox = document.getElementById('customColorBox');
+        const cShadows = document.getElementById('cShadows');
+        const cMidtones = document.getElementById('cMidtones');
+        const cHighlights = document.getElementById('cHighlights');
+
+        const expW = document.getElementById('expW');
+        const expH = document.getElementById('expH');
+        const expU = document.getElementById('expU');
+        const ratioToggle = document.getElementById('ratioToggle');
+
+        const statusText = document.getElementById('status');
+        const btnPng = document.getElementById('btnPng');
+        const btnSvg = document.getElementById('btnSvg');
+
+        const fsGenerate = document.getElementById('fsGenerate');
+        const fsPng = document.getElementById('fsPng');
+        const fsSvg = document.getElementById('fsSvg');
+
+        // Global State
+        let isProcessing = false;
+        let isRatioLocked = false;
+        let globalPoints = [];
+        let globalTriangles = [];
+        let globalImageData = null;
+        let globalImageObj = null;
+        let globalWidth = 0;
+        let globalHeight = 0;
+        let globalAspectRatio = 1;
+        let globalSvgInterior = "";
+        let originalFileName = "artwork";
+        
+        const gradientMaps = {
+            cyberpunk: [ {pos: 0, rgb: [10, 0, 30]}, {pos: 128, rgb: [200, 0, 100]}, {pos: 255, rgb: [0, 255, 255]} ],
+            synthwave: [ {pos: 0, rgb: [36, 0, 56]}, {pos: 128, rgb: [152, 24, 214]}, {pos: 255, rgb: [255, 0, 160]} ],
+            thermal:   [ {pos: 0, rgb: [0, 0, 0]}, {pos: 85, rgb: [255, 0, 0]}, {pos: 170, rgb: [255, 255, 0]}, {pos: 255, rgb: [255, 255, 255]} ],
+            ice:       [ {pos: 0, rgb: [0, 10, 30]}, {pos: 128, rgb: [0, 150, 255]}, {pos: 255, rgb: [220, 250, 255]} ],
+            sunset:    [ {pos: 0, rgb: [26, 11, 46]}, {pos: 128, rgb: [209, 85, 77]}, {pos: 255, rgb: [242, 192, 87]} ],
+            gold:      [ {pos: 0, rgb: [26, 22, 0]}, {pos: 128, rgb: [179, 146, 0]}, {pos: 255, rgb: [255, 226, 89]} ],
+            aurora:    [ {pos: 0, rgb: [0, 15, 30]}, {pos: 85, rgb: [0, 255, 128]}, {pos: 170, rgb: [0, 128, 255]}, {pos: 255, rgb: [200, 0, 255]} ],
+            neon_tokyo:[ {pos: 0, rgb: [10, 0, 20]}, {pos: 85, rgb: [0, 255, 255]}, {pos: 170, rgb: [255, 0, 128]}, {pos: 255, rgb: [255, 255, 0]} ],
+            prismatic: [ {pos: 0, rgb: [20, 0, 0]}, {pos: 64, rgb: [255, 0, 0]}, {pos: 128, rgb: [255, 255, 0]}, {pos: 192, rgb: [0, 255, 255]}, {pos: 255, rgb: [255, 0, 255]} ],
+            hologram:  [ {pos: 0, rgb: [150, 150, 255]}, {pos: 85, rgb: [255, 150, 255]}, {pos: 170, rgb: [150, 255, 255]}, {pos: 255, rgb: [255, 255, 255]} ]
+        };
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [ parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16) ] : [0,0,0];
+        }
+
+        // --- Bulletproof Full Screen Logic ---
+
+        function enterFullscreen() {
+            workspace.classList.add('fullscreen-active');
+            try {
+                if (workspace.requestFullscreen) {
+                    workspace.requestFullscreen().catch(err => console.log(err));
+                } else if (workspace.webkitRequestFullscreen) { 
+                    workspace.webkitRequestFullscreen();
+                } else if (workspace.mozRequestFullScreen) {
+                    workspace.mozRequestFullScreen();
+                } else if (workspace.msRequestFullscreen) {
+                    workspace.msRequestFullscreen();
+                }
+            } catch (e) { console.warn("Fullscreen API Error:", e); }
+        }
+
+        function exitFullscreen() {
+            try {
+                // Brute force all prefixes to ensure the browser responds
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(err => console.log(err));
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.webkitCancelFullScreen) {
+                    document.webkitCancelFullScreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            } catch (e) { console.warn("Fullscreen Exit API Error:", e); }
+            
+            // Failsafe: Remove CSS regardless to guarantee UI recovery
+            workspace.classList.remove('fullscreen-active');
+        }
+
+        btnFullscreen.addEventListener('click', enterFullscreen);
+        
+        fsGenerate.addEventListener('click', () => btnRandom.click());
+        fsPng.addEventListener('click', () => { if(!btnPng.classList.contains('disabled')) downloadPNG(); });
+        fsSvg.addEventListener('click', () => { if(!btnSvg.classList.contains('disabled')) downloadSVG(); });
+
+        // Backup event listeners for device back-button detection
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) workspace.classList.remove('fullscreen-active');
+        });
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (!document.webkitFullscreenElement) workspace.classList.remove('fullscreen-active');
+        });
+
+        // --- Standard Event Listeners ---
+        
+        themeSelect.addEventListener('change', () => {
+            customColorBox.classList.toggle('active', themeSelect.value === 'custom');
+            if (themeSelect.value === 'original') strokeColorInput.value = "#000000";
+            else if (themeSelect.value !== 'custom') strokeColorInput.value = "#ffffff";
+            if (globalPoints.length > 0) requestAnimationFrame(renderGraphics);
+        });
+
+        strokeInput.addEventListener('input', () => {
+            strokeDisplay.textContent = parseFloat(strokeInput.value).toFixed(1);
+            if (globalPoints.length > 0) requestAnimationFrame(renderGraphics);
+        });
+
+        strokeColorInput.addEventListener('input', () => {
+            if (globalPoints.length > 0) requestAnimationFrame(renderGraphics);
+        });
+
+        [cShadows, cMidtones, cHighlights].forEach(input => {
+            input.addEventListener('input', () => {
+                if (themeSelect.value === 'custom' && globalPoints.length > 0) {
+                    requestAnimationFrame(renderGraphics);
+                }
+            });
+        });
+
+        scaleInput.addEventListener('input', () => {
+            scaleDisplay.textContent = scaleInput.value;
+        });
+
+        scaleInput.addEventListener('change', () => {
+            if (globalImageObj && !isProcessing) {
+                triggerAnalysis(globalImageObj, false);
+            }
+        });
+
+        // --- Dimension Logic ---
+        
+        ratioToggle.addEventListener('click', () => {
+            isRatioLocked = !isRatioLocked;
+            if (isRatioLocked) {
+                ratioToggle.classList.add('locked');
+                ratioToggle.innerHTML = '&#128279;'; 
+                if (expW.value && globalAspectRatio) {
+                    expH.value = Math.round(expW.value / globalAspectRatio);
+                }
+            } else {
+                ratioToggle.classList.remove('locked');
+                ratioToggle.innerHTML = '&times;';
+            }
+        });
+
+        expW.addEventListener('input', () => {
+            if (isRatioLocked && document.activeElement === expW && expW.value) {
+                expH.value = Math.round(expW.value / globalAspectRatio);
+            }
+        });
+
+        expH.addEventListener('input', () => {
+            if (isRatioLocked && document.activeElement === expH && expH.value) {
+                expW.value = Math.round(expH.value * globalAspectRatio);
+            }
+        });
+
+        function onDimensionChange() {
+            if (!globalImageObj || isProcessing) return;
+            triggerAnalysis(globalImageObj, false); 
+        }
+
+        expW.addEventListener('change', onDimensionChange);
+        expH.addEventListener('change', onDimensionChange);
+
+        expU.addEventListener('change', () => {
+            let w = parseFloat(expW.value);
+            let h = parseFloat(expH.value);
+            if (!w || !h) return;
+
+            if (expU.value === 'mm') {
+                expW.value = Math.round((w / 300) * 25.4);
+                expH.value = Math.round((h / 300) * 25.4);
+            } else {
+                expW.value = Math.round((w / 25.4) * 300);
+                expH.value = Math.round((h / 25.4) * 300);
+            }
+        });
+
+        uploadInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file || isProcessing) return;
+
+            originalFileName = file.name.split('.').slice(0, -1).join('.') || "artwork";
+            triggerAnalysis(file, true);
+        });
+
+        // --- Engine Guardrails ---
+
+        function checkEngine() {
+            if (typeof Delaunator === 'undefined') {
+                alert("Critical Error: The geometry engine failed to load. Please lower any ad-blocker shields for this page.");
+                return false;
+            }
+            return true;
+        }
+
+        function failProcessing(msg) {
+            console.error(msg);
+            alert("Error: " + msg);
+            statusText.style.opacity = '0';
+            isProcessing = false;
+        }
+
+        function triggerAnalysis(fileOrImg, isNewSource = true) {
+            if (!checkEngine()) return;
+
+            canvas.classList.remove('ready');
+            btnPng.classList.add('disabled');
+            btnSvg.classList.add('disabled');
+            statusText.style.opacity = '1';
+            isProcessing = true;
+
+            if (fileOrImg instanceof File) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    globalImageObj = new Image();
+                    globalImageObj.onload = () => setTimeout(() => analyzeImage(globalImageObj, isNewSource), 50);
+                    globalImageObj.onerror = () => failProcessing("Image failed to load.");
+                    globalImageObj.src = event.target.result;
+                }
+                reader.readAsDataURL(fileOrImg);
+            } else {
+                globalImageObj = fileOrImg;
+                setTimeout(() => analyzeImage(globalImageObj, isNewSource), 50);
+            }
+        }
+
+        function getExportPx() {
+            let w = parseFloat(expW.value);
+            let h = parseFloat(expH.value);
+            if (!w || !h) { w = 1600; h = 1600; }
+            if (expU.value === 'mm') {
+                w = (w / 25.4) * 300;
+                h = (h / 25.4) * 300;
+            }
+            return { w, h };
+        }
+
+        // --- Random Pattern Engine ---
+        btnRandom.addEventListener('click', () => {
+            if (isProcessing || !checkEngine()) return;
+            
+            scaleInput.value = 100;
+            scaleDisplay.textContent = 100;
+
+            strokeInput.value = 0;
+            strokeDisplay.textContent = '0';
+
+            themeSelect.value = 'custom';
+            customColorBox.classList.add('active');
+            
+            const getRandomHex = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            cShadows.value = getRandomHex();
+            cMidtones.value = getRandomHex();
+            cHighlights.value = getRandomHex();
+
+            originalFileName = "random_poly";
+            
+            canvas.classList.remove('ready');
+            btnPng.classList.add('disabled');
+            btnSvg.classList.add('disabled');
+            statusText.style.opacity = '1';
+            isProcessing = true;
+
+            setTimeout(() => {
+                try {
+                    const dims = getExportPx();
+                    const rW = Math.round(dims.w) || 1080;
+                    const rH = Math.round(dims.h) || 2150;
+
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = rW;
+                    tempCanvas.height = rH;
+                    const tCtx = tempCanvas.getContext('2d');
+                    
+                    tCtx.fillStyle = getRandomHex();
+                    tCtx.fillRect(0, 0, rW, rH);
+
+                    const numBlobs = Math.floor(Math.random() * 8) + 6;
+                    for (let i = 0; i < numBlobs; i++) {
+                        const cx = Math.random() * rW;
+                        const cy = Math.random() * rH;
+                        const radius = Math.random() * Math.max(rW, rH) * 0.8;
+
+                        const grad = tCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+                        grad.addColorStop(0, getRandomHex());
+                        grad.addColorStop(1, 'transparent');
+
+                        tCtx.fillStyle = grad;
+                        tCtx.beginPath();
+                        tCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+                        tCtx.fill();
+                    }
+
+                    for (let i = 0; i < 4; i++) {
+                        tCtx.fillStyle = getRandomHex();
+                        tCtx.beginPath();
+                        tCtx.moveTo(Math.random() * rW, Math.random() * rH);
+                        tCtx.lineTo(Math.random() * rW, Math.random() * rH);
+                        tCtx.lineTo(Math.random() * rW, Math.random() * rH);
+                        tCtx.closePath();
+                        tCtx.globalAlpha = 0.5;
+                        tCtx.fill();
+                    }
+
+                    const img = new Image();
+                    img.onload = () => {
+                        globalImageObj = img;
+                        analyzeImage(img, false); 
+                    };
+                    img.onerror = () => failProcessing("Internal random canvas to image process failed.");
+                    img.src = tempCanvas.toDataURL();
+                } catch (e) {
+                    failProcessing("Random generation failed: " + e.message);
+                }
+            }, 50);
+        });
+
+        // --- Core Processing Logic ---
+
+        function drawImageCover(ctx, img, targetW, targetH) {
+            const imgRatio = img.width / img.height;
+            const targetRatio = targetW / targetH;
+            let drawW, drawH, offsetX, offsetY;
+
+            if (imgRatio > targetRatio) {
+                drawH = targetH;
+                drawW = img.width * (targetH / img.height);
+                offsetX = (targetW - drawW) / 2;
+                offsetY = 0;
+            } else {
+                drawW = targetW;
+                drawH = img.height * (targetW / img.width);
+                offsetX = 0;
+                offsetY = (targetH - drawH) / 2;
+            }
+            ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+        }
+
+        function applyGradientMap(r, g, b, theme) {
+            if (theme === 'original') return [Math.min(255, r * 1.2), Math.min(255, g * 1.2), Math.min(255, b * 1.2)];
+
+            let map;
+            if (theme === 'custom') {
+                map = [
+                    {pos: 0, rgb: hexToRgb(cShadows.value)},
+                    {pos: 128, rgb: hexToRgb(cMidtones.value)},
+                    {pos: 255, rgb: hexToRgb(cHighlights.value)}
+                ];
+            } else {
+                map = gradientMaps[theme];
+            }
+            
+            const lum = (r * 0.299 + g * 0.587 + b * 0.114); 
+            
+            let s1 = map[0], s2 = map[map.length - 1];
+            for (let i = 0; i < map.length - 1; i++) {
+                if (lum >= map[i].pos && lum <= map[i+1].pos) {
+                    s1 = map[i]; s2 = map[i+1]; break;
+                }
+            }
+            
+            const t = (lum - s1.pos) / (s2.pos - s1.pos || 1);
+            return [
+                Math.round(s1.rgb[0] + (s2.rgb[0] - s1.rgb[0]) * t),
+                Math.round(s1.rgb[1] + (s2.rgb[1] - s1.rgb[1]) * t),
+                Math.round(s1.rgb[2] + (s2.rgb[2] - s1.rgb[2]) * t)
+            ];
+        }
+
+        function getPixelColor(x, y, currentTheme) {
+            x = Math.max(0, Math.min(globalWidth - 1, Math.floor(x)));
+            y = Math.max(0, Math.min(globalHeight - 1, Math.floor(y)));
+            const i = (y * globalWidth + x) * 4;
+            return applyGradientMap(globalImageData[i], globalImageData[i+1], globalImageData[i+2], currentTheme);
+        }
+
+        function analyzeImage(img, isNewSource) {
+            try {
+                const currentCellSize = parseInt(scaleInput.value, 10);
+                
+                if (isNewSource) {
+                    globalWidth = img.width;
+                    globalHeight = img.height;
+                    globalAspectRatio = globalWidth / globalHeight;
+
+                    if (expU.value === 'px') {
+                        expW.value = globalWidth;
+                        expH.value = globalHeight;
+                    } else {
+                        expW.value = Math.round((globalWidth / 300) * 25.4);
+                        expH.value = Math.round((globalHeight / 300) * 25.4);
+                    }
+                } else {
+                    const dims = getExportPx();
+                    globalWidth = Math.round(dims.w);
+                    globalHeight = Math.round(dims.h);
+                    globalAspectRatio = globalWidth / globalHeight;
+                }
+
+                if (globalWidth > 8500 || globalHeight > 8500) {
+                    alert("Dimensions exceed browser memory safety limit. Capping to 8500px.");
+                    const scaleDown = Math.min(8500 / globalWidth, 8500 / globalHeight);
+                    globalWidth = Math.floor(globalWidth * scaleDown);
+                    globalHeight = Math.floor(globalHeight * scaleDown);
+                    
+                    if (expU.value === 'px') {
+                        expW.value = globalWidth;
+                        expH.value = globalHeight;
+                    }
+                }
+
+                canvas.width = globalWidth;
+                canvas.height = globalHeight;
+
+                drawImageCover(ctx, img, globalWidth, globalHeight);
+                globalImageData = ctx.getImageData(0, 0, globalWidth, globalHeight).data;
+
+                globalPoints = [];
+                
+                const rows = Math.ceil(globalHeight / currentCellSize) + 4;
+                const cols = Math.ceil(globalWidth / currentCellSize) + 4;
+                
+                for (let row = -2; row <= rows; row++) {
+                    for (let col = -2; col <= cols; col++) {
+                        const xOffset = (row % 2 === 0) ? 0 : (currentCellSize / 2);
+                        const baseX = (col * currentCellSize) + xOffset;
+                        const baseY = row * (currentCellSize * 0.866);
+
+                        const jitterX = (Math.random() - 0.5) * currentCellSize * 1.5;
+                        const jitterY = (Math.random() - 0.5) * currentCellSize * 1.5;
+                        
+                        globalPoints.push([
+                            Math.max(0, Math.min(globalWidth, baseX + jitterX)), 
+                            Math.max(0, Math.min(globalHeight, baseY + jitterY))
+                        ]);
+                    }
+                }
+
+                const delaunay = Delaunator.from(globalPoints);
+                globalTriangles = delaunay.triangles;
+
+                renderGraphics();
+            } catch(e) {
+                failProcessing("Engine failed to compute geometry: " + e.message);
+            } finally {
+                // Ensure UI unlocks no matter what happens
+                statusText.style.opacity = '0';
+                canvas.classList.add('ready');
+                btnPng.classList.remove('disabled');
+                btnSvg.classList.remove('disabled');
+                isProcessing = false;
+            }
+        }
+
+        function drawTrianglesToContext(targetCtx, generateSvg = false) {
+            const currentTheme = themeSelect.value;
+            const strokeThick = parseFloat(strokeInput.value);
+            const userStrokeColor = strokeColorInput.value;
+            
+            let svgDefs = `<defs>\n`;
+            let svgPolygons = ``;
+            let gradIdx = 0;
+
+            for (let i = 0; i < globalTriangles.length; i += 3) {
+                const p0 = globalPoints[globalTriangles[i]];
+                const p1 = globalPoints[globalTriangles[i + 1]];
+                const p2 = globalPoints[globalTriangles[i + 2]];
+
+                const c0 = getPixelColor(p0[0], p0[1], currentTheme);
+                const c1 = getPixelColor(p1[0], p1[1], currentTheme);
+                const rgb0 = `${c0[0]},${c0[1]},${c0[2]}`;
+                const rgb1 = `${c1[0]},${c1[1]},${c1[2]}`;
+
+                if (targetCtx) {
+                    const grad = targetCtx.createLinearGradient(p0[0], p0[1], p1[0], p1[1]);
+                    grad.addColorStop(0, `rgb(${rgb0})`);
+                    grad.addColorStop(1, `rgb(${rgb1})`);
+
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(p0[0], p0[1]);
+                    targetCtx.lineTo(p1[0], p1[1]);
+                    targetCtx.lineTo(p2[0], p2[1]);
+                    targetCtx.closePath();
+
+                    targetCtx.fillStyle = grad;
+                    targetCtx.fill();
+
+                    if (strokeThick > 0) {
+                        targetCtx.strokeStyle = userStrokeColor;
+                        targetCtx.lineWidth = strokeThick;
+                        targetCtx.stroke();
+                    } else {
+                        targetCtx.strokeStyle = grad;
+                        targetCtx.lineWidth = 1;
+                        targetCtx.stroke();
+                    }
+                }
+
+                if (generateSvg) {
+                    const gId = `g${gradIdx++}`;
+                    svgDefs += `<linearGradient id="${gId}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stop-color="rgb(${rgb0})" />
+                                  <stop offset="100%" stop-color="rgb(${rgb1})" />
+                                </linearGradient>\n`;
+                    
+                    const pts = `${p0[0].toFixed(1)},${p0[1].toFixed(1)} ${p1[0].toFixed(1)},${p1[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+                    
+                    let strokeSvgProps = ``;
+                    if (strokeThick > 0) {
+                        strokeSvgProps = `stroke="${userStrokeColor}" stroke-opacity="0.8" stroke-width="${strokeThick}" stroke-linejoin="round"`;
+                    } else {
+                        strokeSvgProps = `stroke="url(#${gId})" stroke-width="0.5"`; 
+                    }
+                    
+                    svgPolygons += `<polygon points="${pts}" fill="url(#${gId})" ${strokeSvgProps} />\n`;
+                }
+            }
+
+            if (generateSvg) {
+                svgDefs += `</defs>\n`;
+                globalSvgInterior = `${svgDefs}<rect width="${globalWidth}" height="${globalHeight}" fill="#000000"/>\n${svgPolygons}`;
+            }
+        }
+
+        function renderGraphics() {
+            if (!globalImageData) return;
+            ctx.clearRect(0, 0, globalWidth, globalHeight);
+            drawTrianglesToContext(ctx, true);
+        }
+
+        // --- Precise Download Handlers ---
+        
+        function downloadPNG() {
+            if (btnPng.classList.contains('disabled')) return;
+            const link = document.createElement('a');
+            link.download = `${originalFileName}_${themeSelect.value}_poly.png`;
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+        }
+
+        function downloadSVG() {
+            if (btnSvg.classList.contains('disabled') || !globalSvgInterior) return;
+            
+            let outW = expU.value === 'mm' ? `${expW.value}mm` : `${globalWidth}px`;
+            let outH = expU.value === 'mm' ? `${expH.value}mm` : `${globalHeight}px`;
+
+            const finalSvg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+            <svg viewBox="0 0 ${globalWidth} ${globalHeight}" width="${outW}" height="${outH}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                ${globalSvgInterior}
+            </svg>`;
+
+            const blob = new Blob([finalSvg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `${originalFileName}_${themeSelect.value}_poly.svg`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize with random pattern on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => btnRandom.click(), 500);
+        });
+    </script>
+</body>
+</html>

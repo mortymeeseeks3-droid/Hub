@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Asymmetry Studio - Extreme Fade Fullscreen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300&display=swap" rel="stylesheet">
+<style>
+  /* Minimalist Aesthetic - Reset & Base */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    font-family: 'Jost', "SF Pro Display", sans-serif; 
+    font-weight: 200;
+    background: #030303; 
+    color: #eaeaea; 
+    height: 100vh; 
+    height: 100dvh; 
+    overflow: hidden; 
+  }
+  
+  /* Canvas Area - Always Fullscreen */
+  .canvas-wrapper { 
+    width: 100vw;
+    height: 100vh;
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  
+  #art-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  #art-container svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  
+  /* Floating Controls */
+  .fs-controls { 
+    position: absolute; 
+    bottom: 32px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background: rgba(10,10,10,0.85); 
+    backdrop-filter: blur(16px); 
+    -webkit-backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(255,255,255,0.1); 
+    padding: 8px; 
+    border-radius: 50px; 
+    display: flex;
+    gap: 6px; 
+    z-index: 2000; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    align-items: center;
+  }
+
+  .fs-controls button { 
+    border-radius: 30px; 
+    padding: 12px 20px; 
+    font-family: inherit;
+    font-size: 11px; 
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 0.5px solid transparent; 
+    background: transparent; 
+    color: #aaa;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .fs-controls button:hover { color: #fff; }
+  .fs-controls button:active { background: rgba(255,255,255,0.1); }
+  
+  .fs-controls .btn-primary { 
+    background: rgba(57, 255, 20, 0.08); 
+    border: 0.5px solid rgba(57, 255, 20, 0.4); 
+    color: #39ff14; /* Neon Lime */
+  }
+  .fs-controls .btn-primary:hover {
+    background: rgba(57, 255, 20, 0.15); 
+    border-color: #39ff14;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
+  }
+
+  /* Size Input Fields */
+  .size-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    border-left: 0.5px solid rgba(255,255,255,0.1);
+    border-right: 0.5px solid rgba(255,255,255,0.1);
+    height: 24px;
+  }
+
+  .size-inputs input, .size-inputs select {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 300;
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+  }
+  
+  .size-inputs input { width: 44px; }
+  .size-inputs select { cursor: pointer; color: #39ff14; }
+  .size-inputs select option { background: #030303; color: #fff; }
+  
+  .size-inputs input:focus { color: #39ff14; }
+  .size-inputs input::-webkit-outer-spin-button,
+  .size-inputs input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  
+  .size-inputs span {
+    color: #666;
+    font-size: 10px;
+    margin: 0 2px;
+  }
+
+  @media (max-width: 768px) {
+    .fs-controls { bottom: 16px; padding: 6px; gap: 4px; flex-wrap: wrap; justify-content: center; border-radius: 20px; width: 90%; }
+    .fs-controls button { padding: 10px 14px; font-size: 10px; }
+    .size-inputs { border: none; width: 100%; justify-content: center; margin-bottom: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas-wrapper">
+  <div id="art-container"></div>
+</div>
+
+<div class="fs-controls">
+  <button id="fsRandomBtn" class="btn-primary">Randomize</button>
+  <div class="size-inputs" title="Output Dimensions & Settings">
+    <input type="number" id="outW" value="1080" placeholder="W">
+    <span>✕</span>
+    <input type="number" id="outH" value="1920" placeholder="H">
+    <select id="outUnit">
+      <option value="px">px</option>
+      <option value="mm">mm</option>
+    </select>
+    <select id="outDpi" title="Target DPI">
+      <option value="72">72dpi</option>
+      <option value="300">300dpi</option>
+      <option value="600" selected>600dpi</option>
+    </select>
+  </div>
+  <button id="fsSvgBtn">SVG</button>
+  <button id="fsPngBtn">PNG</button>
+</div>
+
+<script>
+// Core Utilities
+function getRandomNum(min, max) { return Math.random() * (max - min) + min; }
+
+// Highly saturated colors for maximum neon pop
+function getRandomColor() {
+    const h = Math.floor(getRandomNum(0, 360));
+    const s = Math.floor(getRandomNum(80, 100)); 
+    const l = Math.floor(getRandomNum(45, 60));  
+    return { h, s, l };
+}
+
+function getRandomHex() {
+    const r = Math.floor(getRandomNum(0, 255)).toString(16).padStart(2, '0');
+    const g = Math.floor(getRandomNum(0, 255)).toString(16).padStart(2, '0');
+    const b = Math.floor(getRandomNum(0, 255)).toString(16).padStart(2, '0');
+    return `#${r}${g}${b}`;
+}
+
+function hslaStr(c, a) { return `hsla(${c.h}, ${c.s}%, ${c.l}%, ${a})`; }
+
+// State Management
+const styles = ['none', 'graph', 'lined', 'dot'];
+const state = {
+    style: 'graph',
+    showPattern: true,
+    pThickness: 0.5,
+    pColor: '#ffffff',
+    canvasBase: '#030303',
+    bgDensity: 1.0
+};
+
+// Generative Engine
+function generateArt() {
+    const container = document.getElementById('art-container');
+    
+    let svgStr = `<svg id="master-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">`;
+    svgStr += `<defs>`;
+
+    svgStr += `
+        <filter id="noise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
+            <feColorMatrix type="matrix" values="1 0 0 0 0, 0 1 0 0 0, 0 0 1 0 0, 0 0 0 0.05 0" />
+        </filter>
+    `;
+
+    svgStr += `
+        <pattern id="smallGrid" width="25" height="25" patternUnits="userSpaceOnUse">
+            <path d="M 25 0 L 0 0 0 25" fill="none" stroke="${state.pColor}" stroke-width="${state.pThickness * 0.5}" opacity="0.3"/>
+        </pattern>
+        <pattern id="largeGrid" width="100" height="100" patternUnits="userSpaceOnUse">
+            <rect width="100" height="100" fill="url(#smallGrid)"/>
+            <path d="M 100 0 L 0 0 0 100" fill="none" stroke="${state.pColor}" stroke-width="${state.pThickness}" opacity="0.6"/>
+        </pattern>
+
+        <pattern id="lines" width="100" height="40" patternUnits="userSpaceOnUse">
+            <line x1="0" y1="40" x2="100" y2="40" stroke="${state.pColor}" stroke-width="${state.pThickness}" opacity="0.6"/>
+        </pattern>
+
+        <pattern id="dots" width="30" height="30" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="${state.pThickness * 1.5}" fill="${state.pColor}" opacity="0.6" />
+        </pattern>
+    `;
+
+    const layerCount = Math.floor(getRandomNum(10, 18)); 
+    
+    for (let i = 1; i <= layerCount; i++) {
+        const colorA = getRandomColor();
+        const colorB = getRandomColor();
+        
+        const split = getRandomNum(30, 70); 
+        
+        // Tighter spread to make the gradient harsher and more compact
+        const spreadA = getRandomNum(5, 20); 
+        const spreadB = getRandomNum(5, 20); 
+
+        // EXTREME FADE OUT MULTIPLIERS
+        const harshCliffA = spreadA * 0.35;
+        const harshCliffB = spreadB * 0.35;
+
+        svgStr += `
+            <linearGradient id="extremeFade${i}" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="${split - spreadA}%" stop-color="${hslaStr(colorA, 0)}" />
+                <stop offset="${split - harshCliffA}%" stop-color="${hslaStr(colorA, 0.75)}" />
+                <stop offset="${split}%" stop-color="${hslaStr(colorA, 1)}" />
+                <stop offset="${split}%" stop-color="${hslaStr(colorB, 1)}" />
+                <stop offset="${split + harshCliffB}%" stop-color="${hslaStr(colorB, 0.75)}" />
+                <stop offset="${split + spreadB}%" stop-color="${hslaStr(colorB, 0)}" />
+            </linearGradient>
+        `;
+    }
+    svgStr += `</defs>`;
+
+    svgStr += `<rect x="0" y="0" width="100%" height="100%" fill="${state.canvasBase}" />`;
+    svgStr += `<g opacity="${state.bgDensity}">`;
+
+    const radialCount = Math.floor(getRandomNum(1, 3));
+    for (let i = 1; i <= radialCount; i++) {
+        const color = getRandomColor();
+        const cx = getRandomNum(-200, 1200);
+        const cy = getRandomNum(-200, 1200);
+        const r = getRandomNum(800, 1500);
+        svgStr += `
+            <radialGradient id="dimGlow${i}" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="${hslaStr(color, 0.3)}" />
+                <stop offset="100%" stop-color="${hslaStr(color, 0)}" />
+            </radialGradient>
+            <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#dimGlow${i})" />
+        `;
+    }
+
+    const blendModes = ['normal', 'overlay', 'color-dodge', 'hard-light'];
+    for (let i = 1; i <= layerCount; i++) {
+        const cx = getRandomNum(-500, 1500);
+        const cy = getRandomNum(-500, 1500);
+        const angle = getRandomNum(0, 360);
+        const mode = blendModes[Math.floor(Math.random() * blendModes.length)];
+
+        svgStr += `
+            <g transform="translate(${cx}, ${cy}) rotate(${angle})" style="mix-blend-mode: ${mode};">
+                <rect x="-3000" y="-3000" width="6000" height="6000" fill="url(#extremeFade${i})" />
+            </g>
+        `;
+    }
+    svgStr += `</g>`;
+
+    if (state.showPattern && state.style !== 'none') {
+        if (state.style === 'graph') {
+            svgStr += `<rect width="100%" height="100%" fill="url(#largeGrid)" />`;
+        } else if (state.style === 'lined') {
+            svgStr += `<rect width="100%" height="100%" fill="url(#lines)" />`;
+            svgStr += `<line x1="80" y1="0" x2="80" y2="1000" stroke="rgba(255, 60, 60, 0.7)" stroke-width="${state.pThickness * 2}" />`;
+            svgStr += `<line x1="${80 + (state.pThickness * 4)}" y1="0" x2="${80 + (state.pThickness * 4)}" y2="1000" stroke="rgba(255, 60, 60, 0.7)" stroke-width="${state.pThickness * 0.5}" />`;
+        } else if (state.style === 'dot') {
+            svgStr += `<rect width="100%" height="100%" fill="url(#dots)" />`;
+        }
+    }
+
+    svgStr += `<rect width="100%" height="100%" style="pointer-events:none;" filter="url(#noise)" />`;
+    svgStr += `</svg>`;
+    container.innerHTML = svgStr;
+}
+
+// Interaction Handlers
+function executeRandomize() {
+    state.style = styles[Math.floor(Math.random() * styles.length)];
+    state.showPattern = Math.random() > 0.3; // 70% chance to show pattern
+    state.pThickness = getRandomNum(0.2, 1.5);
+    state.pColor = Math.random() > 0.5 ? '#ffffff' : getRandomHex();
+    state.canvasBase = Math.random() > 0.4 ? '#030303' : getRandomHex();
+    state.bgDensity = getRandomNum(0.6, 1.0);
+    generateArt();
+}
+
+// Export System
+function getDimensionsInPx() {
+    const width = parseFloat(document.getElementById('outW').value) || 1080;
+    const height = parseFloat(document.getElementById('outH').value) || 1920;
+    const unit = document.getElementById('outUnit').value;
+    const dpi = parseInt(document.getElementById('outDpi').value) || 600;
+
+    if (unit === 'mm') {
+        const scale = dpi / 25.4;
+        return { w: Math.round(width * scale), h: Math.round(height * scale) };
+    }
+    return { w: Math.round(width), h: Math.round(height) };
+}
+
+function getExportSVGString(w, h) {
+    const originalSvg = document.getElementById('master-art');
+    if (!originalSvg) return null;
+    const clone = originalSvg.cloneNode(true);
+    clone.setAttribute('width', w + 'px');
+    clone.setAttribute('height', h + 'px');
+    return new XMLSerializer().serializeToString(clone);
+}
+
+function triggerDownload(uri, filename) {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = uri;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function downloadSVG() {
+    const dims = getDimensionsInPx();
+    const svgString = getExportSVGString(dims.w, dims.h);
+    if (!svgString) return;
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    triggerDownload(url, `extreme_fade_${dims.w}x${dims.h}.svg`);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+function downloadPNG() {
+    const dims = getDimensionsInPx();
+    const svgString = getExportSVGString(dims.w, dims.h);
+    if (!svgString) return;
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = dims.w;
+        canvas.height = dims.h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = state.canvasBase;
+        ctx.fillRect(0, 0, dims.w, dims.h);
+        ctx.drawImage(img, 0, 0, dims.w, dims.h);
+        
+        const pngDataUrl = canvas.toDataURL('image/png');
+        triggerDownload(pngDataUrl, `extreme_fade_${dims.w}x${dims.h}.png`);
+        URL.revokeObjectURL(url);
+    };
+    img.src = url;
+}
+
+// Bindings
+document.getElementById('fsRandomBtn').addEventListener('click', executeRandomize);
+document.getElementById('fsSvgBtn').addEventListener('click', downloadSVG);
+document.getElementById('fsPngBtn').addEventListener('click', downloadPNG);
+
+// Auto-generate on load
+executeRandomize();
+</script>
+</body>
+</html>

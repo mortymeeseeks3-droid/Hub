@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Compact Pro Image Editor</title>
+    
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #bb86fc;
+            --text-color: #ffffff;
+            --text-secondary: #b3b3b3;
+            --border-color: #333;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        /* Loading Screen */
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: rgba(0,0,0,0.9);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 9999;
+        }
+        
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid var(--primary-color);
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Header / Upload */
+        header {
+            padding: 10px 15px; background-color: var(--surface-color);
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5); z-index: 10;
+        }
+
+        .btn {
+            background-color: var(--primary-color); color: #000;
+            padding: 8px 16px; border-radius: 20px; font-weight: bold;
+            font-size: 14px; cursor: pointer; border: none;
+        }
+
+        input[type="file"] { display: none; }
+
+        /* Canvas Preview */
+        .preview-container {
+            flex: 1 1 auto; display: flex; align-items: center; justify-content: center;
+            padding: 10px; overflow: hidden; background-color: #000;
+        }
+
+        canvas {
+            max-width: 100%; max-height: 100%; object-fit: contain;
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex; background-color: #181818; border-top: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1; padding: 12px 0; background: transparent; color: var(--text-secondary);
+            border: none; border-bottom: 3px solid transparent; font-weight: bold; font-size: 13px;
+        }
+
+        .tab-btn.active { color: var(--primary-color); border-bottom: 3px solid var(--primary-color); }
+
+        /* Controls Area */
+        .controls-container {
+            background-color: var(--surface-color); height: 38dvh;
+            padding: 15px; box-sizing: border-box; overflow-y: auto;
+        }
+
+        .tab-content { display: none; flex-direction: column; gap: 15px; height: 100%; }
+        .tab-content.active { display: flex; }
+
+        /* Form Elements */
+        .layer-row { display: flex; gap: 10px; align-items: center; }
+        select { flex: 1; background: #333; color: white; border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; }
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        .control-group label { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); }
+
+        /* Sliders */
+        input[type="range"] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--primary-color); margin-top: -6px; }
+        input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #444; border-radius: 2px; }
+        
+        #r::-webkit-slider-thumb { background: #ff5252; }
+        #g::-webkit-slider-thumb { background: #69f0ae; }
+        #b::-webkit-slider-thumb { background: #448aff; }
+
+        /* Action Buttons */
+        .action-buttons { display: flex; gap: 10px; margin-top: auto; }
+        .action-buttons button { flex: 1; padding: 12px; border: none; border-radius: 8px; background-color: #333; color: white; font-weight: bold; }
+        .action-buttons button.primary { background-color: var(--primary-color); color: #000; }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <h3 id="loadingText" style="color:white; font-family:sans-serif;">Exporting High-Res...</h3>
+    </div>
+
+    <header>
+        <label for="imageLoader" class="btn">+ Add Layer</label>
+        <input type="file" id="imageLoader" accept="image/*" />
+        <span style="font-size: 14px; font-weight: bold;">Stable Editor</span>
+    </header>
+
+    <div class="preview-container">
+        <canvas id="imageCanvas"></canvas>
+    </div>
+
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab(event, 'tab-layers')">Layers</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-adjust')">Adjust</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-color')">Color</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-export')">Export</button>
+    </div>
+
+    <div class="controls-container">
+        <div id="tab-layers" class="tab-content active">
+            <div class="layer-row">
+                <select id="layerSelect"><option value="-1">No Layers</option></select>
+                <button id="deleteLayerBtn" class="btn" style="background:#cf6679; color:white; padding: 8px 12px;">Delete</button>
+            </div>
+            <div class="layer-row">
+                <span style="color:var(--text-secondary); font-size:13px;">Blend:</span>
+                <select id="blendMode">
+                    <option value="source-over">Normal</option>
+                    <option value="multiply">Multiply</option>
+                    <option value="screen">Screen</option>
+                    <option value="overlay">Overlay</option>
+                    <option value="color-dodge">Color Dodge</option>
+                    <option value="difference">Difference</option>
+                </select>
+            </div>
+            <div class="control-group" style="margin-top: 10px;">
+                <label>Opacity <span id="val-opacity">100%</span></label>
+                <input type="range" id="opacity" min="0" max="100" value="100">
+            </div>
+        </div>
+
+        <div id="tab-adjust" class="tab-content">
+            <div class="control-group">
+                <label>Brightness <span id="val-brightness">100%</span></label>
+                <input type="range" id="brightness" min="0" max="200" value="100">
+            </div>
+            <div class="control-group">
+                <label>Contrast <span id="val-contrast">100%</span></label>
+                <input type="range" id="contrast" min="0" max="200" value="100">
+            </div>
+            <div class="control-group">
+                <label>Saturation <span id="val-saturate">100%</span></label>
+                <input type="range" id="saturate" min="0" max="200" value="100">
+            </div>
+        </div>
+
+        <div id="tab-color" class="tab-content">
+            <div class="control-group">
+                <label>Hue Rotate <span id="val-hue">0°</span></label>
+                <input type="range" id="hue" min="-180" max="180" value="0">
+            </div>
+            <div class="control-group">
+                <label style="color:#ff5252;">Red Channel <span id="val-r">100%</span></label>
+                <input type="range" id="r" min="0" max="200" value="100">
+            </div>
+            <div class="control-group">
+                <label style="color:#69f0ae;">Green Channel <span id="val-g">100%</span></label>
+                <input type="range" id="g" min="0" max="200" value="100">
+            </div>
+            <div class="control-group">
+                <label style="color:#448aff;">Blue Channel <span id="val-b">100%</span></label>
+                <input type="range" id="b" min="0" max="200" value="100">
+            </div>
+        </div>
+
+        <div id="tab-export" class="tab-content" style="justify-content: center;">
+            <p style="text-align: center; color: var(--text-secondary); font-size: 14px;">
+                Export uses the original high-resolution file. PNG preserves lossless quality.
+            </p>
+            <div class="action-buttons">
+                <button id="savePngBtn">Save PNG</button>
+                <button id="saveWebpBtn" class="primary">Save WEBP</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        // State variables
+        let layers = [];
+        let activeLayerIndex = -1;
+        
+        // Mobile performance: limit live preview canvas to 1200px max. 
+        // Full resolution is ONLY used during export.
+        const PREVIEW_MAX = 1200; 
+
+        // Core UI References
+        const ui = {
+            layerSelect: document.getElementById('layerSelect'),
+            blendMode: document.getElementById('blendMode'),
+            sliders: {
+                opacity: document.getElementById('opacity'),
+                brightness: document.getElementById('brightness'),
+                contrast: document.getElementById('contrast'),
+                saturate: document.getElementById('saturate'),
+                hue: document.getElementById('hue'),
+                r: document.getElementById('r'),
+                g: document.getElementById('g'),
+                b: document.getElementById('b')
+            },
+            labels: {
+                opacity: document.getElementById('val-opacity'),
+                brightness: document.getElementById('val-brightness'),
+                contrast: document.getElementById('val-contrast'),
+                saturate: document.getElementById('val-saturate'),
+                hue: document.getElementById('val-hue'),
+                r: document.getElementById('val-r'),
+                g: document.getElementById('val-g'),
+                b: document.getElementById('val-b')
+            }
+        };
+
+        // Tab Switching
+        function switchTab(event, tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Image Upload logic
+        document.getElementById('imageLoader').addEventListener('change', (e) => {
+            if(!e.target.files[0]) return;
+            const reader = new FileReader();
+            
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    layers.push({
+                        name: `Layer ${layers.length + 1}`,
+                        img: img,
+                        blendMode: 'source-over',
+                        opacity: 100, b: 100, c: 100, s: 100, h: 0,
+                        r: 100, g: 100, bl: 100 
+                    });
+                    
+                    // Base the preview canvas size on the first layer
+                    if (layers.length === 1) {
+                        let scale = 1;
+                        if (img.width > PREVIEW_MAX || img.height > PREVIEW_MAX) {
+                            scale = Math.min(PREVIEW_MAX / img.width, PREVIEW_MAX / img.height);
+                        }
+                        canvas.width = Math.floor(img.width * scale);
+                        canvas.height = Math.floor(img.height * scale);
+                    }
+                    
+                    updateDropdown();
+                    setActiveLayer(layers.length - 1);
+                    render(ctx, canvas.width, canvas.height);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(e.target.files[0]);
+            e.target.value = ''; // Reset input
+        });
+
+        function updateDropdown() {
+            ui.layerSelect.innerHTML = layers.length === 0 ? '<option value="-1">No Layers</option>' : '';
+            layers.forEach((layer, index) => {
+                ui.layerSelect.innerHTML += `<option value="${index}">${layer.name}</option>`;
+            });
+            ui.layerSelect.value = activeLayerIndex;
+        }
+
+        function setActiveLayer(index) {
+            activeLayerIndex = parseInt(index);
+            ui.layerSelect.value = activeLayerIndex;
+            if (activeLayerIndex === -1 || layers.length === 0) return;
+            
+            const l = layers[activeLayerIndex];
+            ui.blendMode.value = l.blendMode;
+            
+            ui.sliders.opacity.value = l.opacity;
+            ui.sliders.brightness.value = l.b;
+            ui.sliders.contrast.value = l.c;
+            ui.sliders.saturate.value = l.s;
+            ui.sliders.hue.value = l.h;
+            ui.sliders.r.value = l.r;
+            ui.sliders.g.value = l.g;
+            ui.sliders.b.value = l.bl;
+            
+            updateLabels(l);
+        }
+
+        function updateLabels(l) {
+            ui.labels.opacity.innerText = `${l.opacity}%`;
+            ui.labels.brightness.innerText = `${l.b}%`;
+            ui.labels.contrast.innerText = `${l.c}%`;
+            ui.labels.saturate.innerText = `${l.s}%`;
+            ui.labels.hue.innerText = `${l.h}°`;
+            ui.labels.r.innerText = `${l.r}%`;
+            ui.labels.g.innerText = `${l.g}%`;
+            ui.labels.b.innerText = `${l.bl}%`;
+        }
+
+        ui.layerSelect.addEventListener('change', (e) => setActiveLayer(e.target.value));
+        ui.blendMode.addEventListener('change', (e) => {
+            if (activeLayerIndex !== -1) { layers[activeLayerIndex].blendMode = e.target.value; render(ctx, canvas.width, canvas.height); }
+        });
+
+        document.getElementById('deleteLayerBtn').addEventListener('click', () => {
+            if (activeLayerIndex === -1) return;
+            layers.splice(activeLayerIndex, 1);
+            if (layers.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                activeLayerIndex = -1;
+            } else {
+                setActiveLayer(Math.max(0, activeLayerIndex - 1));
+            }
+            updateDropdown();
+            render(ctx, canvas.width, canvas.height);
+        });
+
+        // Sliders Listeners
+        Object.keys(ui.sliders).forEach(key => {
+            ui.sliders[key].addEventListener('input', (e) => {
+                if (activeLayerIndex === -1) return;
+                const val = parseInt(e.target.value);
+                const l = layers[activeLayerIndex];
+                
+                if (key === 'opacity') l.opacity = val;
+                if (key === 'brightness') l.b = val;
+                if (key === 'contrast') l.c = val;
+                if (key === 'saturate') l.s = val;
+                if (key === 'hue') l.h = val;
+                if (key === 'r') l.r = val;
+                if (key === 'g') l.g = val;
+                if (key === 'b') l.bl = val; // Handle mapping blue slider to 'bl' property
+                
+                updateLabels(l);
+                // Render to preview canvas dynamically
+                render(ctx, canvas.width, canvas.height);
+            });
+        });
+
+        // The Engine: Renders layers and applies strict pixel RGB multiplication
+        function render(targetCtx, w, h) {
+            targetCtx.clearRect(0, 0, w, h);
+            
+            layers.forEach(layer => {
+                targetCtx.globalCompositeOperation = layer.blendMode;
+                targetCtx.globalAlpha = layer.opacity / 100;
+
+                const rMult = layer.r / 100;
+                const gMult = layer.g / 100;
+                const bMult = layer.bl / 100;
+
+                // If RGB is modified, we need an isolated offscreen canvas to calculate pixels securely
+                if (rMult !== 1 || gMult !== 1 || bMult !== 1) {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = w;
+                    tempCanvas.height = h;
+                    const tCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+                    
+                    tCtx.filter = `brightness(${layer.b}%) contrast(${layer.c}%) saturate(${layer.s}%) hue-rotate(${layer.h}deg)`;
+                    tCtx.drawImage(layer.img, 0, 0, w, h);
+
+                    // High performance direct pixel mapping array
+                    const imgData = tCtx.getImageData(0, 0, w, h);
+                    const data = imgData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        data[i]   = Math.min(255, data[i] * rMult);     // Red
+                        data[i+1] = Math.min(255, data[i+1] * gMult);   // Green
+                        data[i+2] = Math.min(255, data[i+2] * bMult);   // Blue
+                    }
+                    tCtx.putImageData(imgData, 0, 0);
+
+                    // Draw modified temp canvas to main
+                    targetCtx.filter = 'none';
+                    targetCtx.drawImage(tempCanvas, 0, 0, w, h);
+                } else {
+                    // Standard fast draw if RGB is untouched
+                    targetCtx.filter = `brightness(${layer.b}%) contrast(${layer.c}%) saturate(${layer.s}%) hue-rotate(${layer.h}deg)`;
+                    targetCtx.drawImage(layer.img, 0, 0, w, h);
+                }
+            });
+            
+            // Reset global parameters
+            targetCtx.globalAlpha = 1.0;
+            targetCtx.globalCompositeOperation = 'source-over';
+            targetCtx.filter = 'none';
+        }
+
+        // Dedicated High-Res Export Function
+        function exportImg(format, ext) {
+            if (layers.length === 0) return alert("Add an image first!");
+            loadingOverlay.style.display = 'flex';
+
+            // Slight timeout to ensure UI updates before heavy logic freezes the thread
+            setTimeout(() => {
+                const exportCanvas = document.createElement('canvas');
+                // Use the true, uncompressed original dimensions
+                exportCanvas.width = layers[0].img.width;
+                exportCanvas.height = layers[0].img.height;
+                const exportCtx = exportCanvas.getContext('2d');
+
+                // Render at full resolution
+                render(exportCtx, exportCanvas.width, exportCanvas.height);
+
+                // Trigger download
+                const link = document.createElement('a');
+                link.download = `Pro-Composite-${Date.now()}.${ext}`;
+                link.href = exportCanvas.toDataURL(`image/${format}`, 1.0);
+                link.click();
+
+                loadingOverlay.style.display = 'none';
+            }, 100);
+        }
+
+        document.getElementById('savePngBtn').addEventListener('click', () => exportImg('png', 'png'));
+        document.getElementById('saveWebpBtn').addEventListener('click', () => exportImg('webp', 'webp'));
+    </script>
+</body>
+</html>
